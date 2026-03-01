@@ -1,0 +1,68 @@
+{
+  "auth": {
+    "login": {
+      "title": "Bon retour",
+      "subtitle": "Connectez-vous pour accéder à vos espaces de travail.",
+      "email": "Email",
+      "password": "Mot de passe",
+      "forgotPassword": "Mot de passe oublié ?",
+      "submit": "Se connecter",
+      "noAccount": "Pas encore de compte ?",
+      "createOne": "Créer un compte",
+      "emailPlaceholder": "nom@entreprise.com",
+      "passwordPlaceholder": "Entrez votre mot de passe",
+      "panelTitle": "Votre connaissance, toujours à portée",
+      "panelSubtitle": "DocuMind combine la gestion documentaire structurée avec une recherche alimentée par l'IA pour que votre équipe ne perde plus jamais de connaissances."
+    },
+    "register": {
+      "title": "Créer votre compte",
+      "subtitle": "Commencez avec DocuMind gratuitement.",
+      "fullName": "Nom complet",
+      "email": "Email",
+      "password": "Mot de passe",
+      "confirmPassword": "Confirmer le mot de passe",
+      "submit": "Créer le compte",
+      "hasAccount": "Déjà un compte ?",
+      "signIn": "Se connecter",
+      "namePlaceholder": "Jean Dupont",
+      "emailPlaceholder": "nom@entreprise.com",
+      "passwordPlaceholder": "Min. 8 caractères",
+      "confirmPlaceholder": "Répétez votre mot de passe",
+      "panelTitle": "Commencez à construire votre base de connaissances",
+      "panelSubtitle": "Créez votre espace de travail, invitez votre équipe et laissez l'IA vous aider à gérer et retrouver votre documentation intelligemment."
+    },
+    "otp": {
+      "title": "Vérifiez votre email",
+      "subtitle": "Nous avons envoyé un code à 6 chiffres à",
+      "label": "Code de vérification",
+      "submit": "Vérifier",
+      "resend": "Renvoyer le code",
+      "back": "Retour à la connexion"
+    },
+    "forgotPassword": {
+      "title": "Réinitialiser le mot de passe",
+      "subtitle": "Entrez votre email et nous vous enverrons un lien.",
+      "email": "Email",
+      "submit": "Envoyer le lien",
+      "sent": "Vérifiez votre email",
+      "sentSubtitle": "Nous avons envoyé un lien de réinitialisation à votre adresse email.",
+      "back": "Retour à la connexion",
+      "remember": "Vous vous souvenez de votre mot de passe ?",
+      "signIn": "Se connecter"
+    },
+    "errors": {
+      "passwordMismatch": "Les mots de passe ne correspondent pas.",
+      "passwordLength": "Le mot de passe doit contenir au moins 8 caractères.",
+      "fillAll": "Veuillez remplir tous les champs.",
+      "invalidCredentials": "Email ou mot de passe invalide.",
+      "accountLocked": "Compte verrouillé. Réessayez dans 15 minutes.",
+      "invalidOtp": "Code invalide ou expiré.",
+      "emailExists": "Cet email est déjà utilisé."
+    }
+  },
+  "common": {
+    "loading": "Chargement...",
+    "appName": "DocuMind",
+    "appTagline": "Votre connaissance, toujours à portée"
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "auth": {
+    "login": {
+      "title": "Welcome back",
+      "subtitle": "Sign in to access your workspaces and documents.",
+      "email": "Email",
+      "password": "Password",
+      "forgotPassword": "Forgot password?",
+      "submit": "Sign In",
+      "noAccount": "Don't have an account?",
+      "createOne": "Create one",
+      "emailPlaceholder": "name@company.com",
+      "passwordPlaceholder": "Enter your password",
+      "panelTitle": "Your knowledge, always at hand",
+      "panelSubtitle": "DocuMind combines structured document management with AI-powered retrieval so your team never loses knowledge again."
+    },
+    "register": {
+      "title": "Create your account",
+      "subtitle": "Get started with DocuMind for free.",
+      "fullName": "Full Name",
+      "email": "Email",
+      "password": "Password",
+      "confirmPassword": "Confirm Password",
+      "submit": "Create Account",
+      "hasAccount": "Already have an account?",
+      "signIn": "Sign in",
+      "namePlaceholder": "John Doe",
+      "emailPlaceholder": "name@company.com",
+      "passwordPlaceholder": "Min. 8 characters",
+      "confirmPlaceholder": "Repeat your password",
+      "panelTitle": "Start building your knowledge base",
+      "panelSubtitle": "Create your workspace, invite your team, and let AI help you manage and retrieve your documentation intelligently."
+    },
+    "otp": {
+      "title": "Check your email",
+      "subtitle": "We sent a 6-digit code to",
+      "label": "Verification code",
+      "submit": "Verify",
+      "resend": "Resend code",
+      "back": "Back to login"
+    },
+    "forgotPassword": {
+      "title": "Reset your password",
+      "subtitle": "Enter your email and we'll send you a reset link.",
+      "email": "Email",
+      "submit": "Send Reset Link",
+      "sent": "Check your email",
+      "sentSubtitle": "We sent a password reset link to your email address.",
+      "back": "Back to Sign In",
+      "remember": "Remember your password?",
+      "signIn": "Sign in"
+    },
+    "errors": {
+      "passwordMismatch": "Passwords do not match.",
+      "passwordLength": "Password must be at least 8 characters.",
+      "fillAll": "Please fill in all fields.",
+      "invalidCredentials": "Invalid email or password.",
+      "accountLocked": "Account locked. Try again in 15 minutes.",
+      "invalidOtp": "Invalid or expired code.",
+      "emailExists": "This email is already in use."
+    }
+  },
+  "common": {
+    "loading": "Loading...",
+    "appName": "DocuMind",
+    "appTagline": "Your knowledge, always at hand"
+  }
+}
