@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Utilisateur {
+  id                  String    @id @default(uuid())
+  nom                 String
+  email               String    @unique
+  motDePasse          String
+  avatarUrl           String?
+  estActif            Boolean   @default(false)
+  tentativesEchec     Int       @default(0)
+  verrouillageJusqua  DateTime?
+  dateCreation        DateTime  @default(now())
+  dateMiseAJour       DateTime  @updatedAt
+
+  tokens              TokenVerification[]
+  memberships         MembreWorkspace[]
+
+  @@map("utilisateurs")
+}
+
+model TokenVerification {
+  id             String    @id @default(uuid())
+  utilisateurId  String
+  token          String    @unique
+  type           TokenType
+  expiration     DateTime
+  dateCreation   DateTime  @default(now())
+
+  utilisateur    Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+
+  @@map("tokens_verification")
+}
+
+enum TokenType {
+  CONFIRMATION_EMAIL
+  RESET_MOT_DE_PASSE
+  OTP_2FA
+}
+
+model Workspace {
+  id             String    @id @default(uuid())
+  nom            String
+  proprietaireId String
+  description    String?
+  logoUrl        String?
+  dateCreation   DateTime  @default(now())
+  dateMiseAJour  DateTime  @updatedAt
+
+  membres        MembreWorkspace[]
+
+  @@map("workspaces")
+}
+
+model MembreWorkspace {
+  id             String   @id @default(uuid())
+  utilisateurId  String
+  workspaceId    String
+  role           Role
+  dateAdhesion   DateTime @default(now())
+
+  utilisateur    Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  workspace      Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([utilisateurId, workspaceId])
+  @@map("membres_workspace")
+}
+
+enum Role {
+  LECTEUR
+  EDITEUR
+  ADMINISTRATEUR
+  PROPRIETAIRE
+}
