@@ -6,6 +6,9 @@ import { PrismaModule } from './prisma/prisma.module';
 import { MailModule } from './mail/mail.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { WorkspacesModule } from './workspaces/workspaces.module';
+import { MembresModule } from './membres/membres.module';
+import { InvitationsModule } from './invitations/invitations.module';
 
 @Module({
   imports: [
@@ -14,6 +17,9 @@ import { UsersModule } from './users/users.module';
     MailModule,
     AuthModule,
     UsersModule,
+    WorkspacesModule,
+    MembresModule,
+    InvitationsModule,
   ],
   providers: [
     {

@@ -54,6 +54,7 @@ model Workspace {
   dateMiseAJour  DateTime  @updatedAt
 
   membres        MembreWorkspace[]
+  invitations    Invitation[]
 
   @@map("workspaces")
 }
@@ -77,4 +78,18 @@ enum Role {
   EDITEUR
   ADMINISTRATEUR
   PROPRIETAIRE
+}
+
+model Invitation {
+  id           String    @id @default(uuid())
+  email        String
+  workspaceId  String
+  token        String    @unique
+  role         Role      @default(LECTEUR)
+  expiration   DateTime
+  dateCreation DateTime  @default(now())
+
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("invitations")
 }

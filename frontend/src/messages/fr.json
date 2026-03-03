@@ -29,7 +29,7 @@
       "passwordPlaceholder": "Min. 8 caractères",
       "confirmPlaceholder": "Répétez votre mot de passe",
       "panelTitle": "Commencez à construire votre base de connaissances",
-      "panelSubtitle": "Créez votre espace de travail, invitez votre équipe et laissez l'IA vous aider à gérer et retrouver votre documentation intelligemment."
+      "panelSubtitle": "Créez votre espace de travail, invitez votre équipe et laissez l'IA gérer votre documentation intelligemment."
     },
     "otp": {
       "title": "Vérifiez votre email",
@@ -60,9 +60,282 @@
       "emailExists": "Cet email est déjà utilisé."
     }
   },
+  "nav": {
+    "features": "Fonctionnalités",
+    "howItWorks": "Comment ça marche",
+    "aiAssistant": "Assistant IA",
+    "security": "Sécurité",
+    "signIn": "Se connecter",
+    "getStarted": "Commencer gratuitement"
+  },
+  "home": {
+    "hero": {
+      "badge": "Propulsé par la technologie RAG",
+      "title": "La connaissance de votre équipe,",
+      "titleHighlight": "comprise par l'IA",
+      "subtitle": "Centralisez votre documentation, posez des questions en langage naturel, et obtenez des réponses précises basées uniquement sur votre contenu.",
+      "startFree": "Commencer gratuitement",
+      "viewDemo": "Voir la démo"
+    },
+    "features": {
+      "badge": "Fonctionnalités",
+      "title": "Tout ce dont votre équipe a besoin pour gérer la connaissance",
+      "subtitle": "De la création de documents aux insights IA, DocuMind offre une plateforme complète.",
+      "items": {
+        "workspaces": {
+          "title": "Espaces de travail structurés",
+          "desc": "Créez des espaces organisés avec des dossiers et documents imbriqués."
+        },
+        "qa": {
+          "title": "Q&R IA sur les documents",
+          "desc": "Posez des questions en langage naturel et obtenez des réponses précises avec citations."
+        },
+        "summaries": {
+          "title": "Résumés intelligents",
+          "desc": "Générez des résumés structurés en un clic. Laissez l'IA extraire les informations clés."
+        },
+        "search": {
+          "title": "Recherche sémantique",
+          "desc": "Trouvez des documents par sens, pas seulement par mots-clés."
+        },
+        "roles": {
+          "title": "Accès basé sur les rôles",
+          "desc": "Permissions granulaires avec rôles Lecteur, Éditeur, Admin et Propriétaire."
+        },
+        "isolation": {
+          "title": "Isolation des données",
+          "desc": "Isolation multi-tenant complète. L'IA n'accède qu'au contenu de votre espace."
+        }
+      }
+    },
+    "howItWorks": {
+      "badge": "Comment ça marche",
+      "title": "De la documentation à l'intelligence en 4 étapes",
+      "steps": {
+        "create": {
+          "number": "01",
+          "title": "Créer et organiser",
+          "desc": "Configurez votre espace, créez des dossiers et rédigez des documents avec notre éditeur riche."
+        },
+        "index": {
+          "number": "02",
+          "title": "Indexation automatique",
+          "desc": "Chaque document sauvegardé est automatiquement découpé et indexé via des embeddings vectoriels."
+        },
+        "ask": {
+          "number": "03",
+          "title": "Posez des questions",
+          "desc": "Ouvrez l'assistant IA, posez des questions en langage naturel et recevez des réponses sourcées."
+        },
+        "generate": {
+          "number": "04",
+          "title": "Générer et simplifier",
+          "desc": "Résumez automatiquement, simplifiez ou générez de nouveaux documents."
+        }
+      }
+    },
+    "ai": {
+      "badge": "Technologie RAG",
+      "title": "Une IA qui ne connaît que ce que vous savez",
+      "subtitle": "L'assistant de DocuMind utilise exclusivement vos documents comme source de connaissance. Pas d'hallucinations, pas de contamination externe.",
+      "features": {
+        "qa": {
+          "title": "Q&R contextuelle",
+          "desc": "Posez n'importe quelle question et obtenez des réponses avec citations exactes"
+        },
+        "summaries": {
+          "title": "Résumés en un clic",
+          "desc": "Générez des résumés structurés de longs documents instantanément"
+        },
+        "simplify": {
+          "title": "Simplification du contenu",
+          "desc": "Réécrivez la documentation complexe en langage accessible"
+        },
+        "generate": {
+          "title": "Génération de documents IA",
+          "desc": "Décrivez ce dont vous avez besoin et laissez l'IA rédiger une première version"
+        }
+      },
+      "chatDemo": {
+        "question": "Comment fonctionne le système d'authentification dans notre API ?",
+        "answer": "Selon le Guide d'authentification REST API, le système utilise des tokens JWT pour l'authentification sans état. Le flux est : l'utilisateur soumet ses identifiants, le serveur valide avec bcrypt, un token JWT est généré et retourné.",
+        "source1": "Guide Auth",
+        "source2": "Architecture"
+      }
+    },
+    "security": {
+      "badge": "Sécurité",
+      "title": "Sécurité de niveau entreprise par conception",
+      "subtitle": "La confidentialité de vos données est notre priorité. Chaque aspect de DocuMind est construit avec des principes de sécurité d'abord.",
+      "items": {
+        "isolation": {
+          "title": "Isolation multi-tenant",
+          "desc": "Séparation complète des données entre espaces. Aucune fuite de données."
+        },
+        "auth": {
+          "title": "JWT + bcrypt",
+          "desc": "Authentification standard avec mots de passe hachés et tokens sécurisés."
+        },
+        "permissions": {
+          "title": "Permissions granulaires",
+          "desc": "Contrôle d'accès basé sur les rôles avec remplacements par document."
+        },
+        "scoped": {
+          "title": "Contexte IA limité",
+          "desc": "L'IA n'accède qu'aux documents de votre espace. Pas de mélange inter-organisations."
+        },
+        "rateLimit": {
+          "title": "Limitation de débit",
+          "desc": "Protection contre la force brute avec verrouillage automatique après 5 tentatives."
+        },
+        "audit": {
+          "title": "Piste d'audit",
+          "desc": "Historique complet des versions et suivi des activités pour la conformité."
+        }
+      }
+    },
+    "cta": {
+      "title": "Prêt à transformer la gestion des connaissances de votre équipe ?",
+      "subtitle": "Rejoignez les équipes qui font confiance à DocuMind pour centraliser leur documentation.",
+      "getStarted": "Commencer gratuitement",
+      "viewDemo": "Voir la démo"
+    },
+    "footer": {
+      "builtWith": "Construit avec Next.js, PostgreSQL + pgvector et OpenAI."
+    }
+  },
   "common": {
     "loading": "Chargement...",
     "appName": "DocuMind",
     "appTagline": "Votre connaissance, toujours à portée"
+  },
+  "dashboard": {
+    "title": "Mes espaces de travail",
+    "subtitle": "Sélectionnez un espace ou créez-en un nouveau",
+    "createWorkspace": "Nouvel espace",
+    "noWorkspaces": "Aucun espace de travail",
+    "noWorkspacesDesc": "Créez votre premier espace pour commencer à organiser les connaissances de votre équipe.",
+    "members": "membres",
+    "yourRole": "Votre rôle",
+    "lastUpdated": "Mis à jour",
+    "create": {
+      "title": "Créer un espace de travail",
+      "subtitle": "Un espace est un espace partagé pour les documents de votre équipe.",
+      "name": "Nom de l'espace",
+      "namePlaceholder": "ex. Équipe Engineering",
+      "description": "Description",
+      "descriptionPlaceholder": "À quoi sert cet espace ?",
+      "submit": "Créer l'espace",
+      "cancel": "Annuler"
+    },
+    "nav": {
+      "dashboard": "Tableau de bord",
+      "allWorkspaces": "Tous les espaces",
+      "overview": "Vue d'ensemble",
+      "members": "Membres",
+      "settings": "Paramètres",
+      "documents": "Documents",
+      "currentWorkspace": "Espace actuel",
+      "workspaces": "Espaces de travail",
+      "welcomeBack": "Bon retour",
+      "activity": "Voici un aperçu de l'activité de vos espaces."
+    },
+    "workspace": {
+      "overviewNav": "Vue d'ensemble",
+      "membersNav": "Membres",
+      "settingsNav": "Paramètres",
+      "documentsNav": "Documents",
+      "backToDashboard": "Tous les espaces",
+      "membersCount": "membres dans votre espace de travail",
+      "createdBy": "Créé par",
+      "invite": {
+        "title": "Inviter un membre",
+        "email": "Adresse email",
+        "emailPlaceholder": "collegue@entreprise.com",
+        "role": "Rôle",
+        "submit": "Envoyer l'invitation",
+        "cancel": "Annuler",
+        "success": "Invitation envoyée !"
+      },
+      "roles": {
+        "PROPRIETAIRE": "Propriétaire",
+        "ADMINISTRATEUR": "Administrateur",
+        "EDITEUR": "Éditeur",
+        "LECTEUR": "Lecteur"
+      },
+      "members": {
+        "title": "Membres",
+        "invite": "Inviter",
+        "you": "Vous",
+        "changeRole": "Changer le rôle",
+        "remove": "Retirer",
+        "confirmRemove": "Retirer ce membre ?",
+        "noMembers": "Aucun membre"
+      },
+      "settings": {
+        "title": "Paramètres de l'espace",
+        "subtitle": "Gérez les paramètres et les préférences de votre espace de travail.",
+        "general": "Général",
+        "name": "Nom de l'espace",
+        "description": "Description",
+        "save": "Enregistrer",
+        "saved": "Enregistré !",
+        "dangerZone": "Zone dangereuse",
+        "deleteTitle": "Supprimer cet espace",
+        "deleteDesc": "Cette action est irréversible. Tous les documents et membres seront supprimés définitivement.",
+        "deleteButton": "Supprimer l'espace",
+        "confirmDelete": "Tapez le nom de l'espace pour confirmer",
+        "confirmDeleteButton": "Oui, supprimer définitivement"
+      }
+    },
+    "invitation": {
+      "title": "Vous avez été invité !",
+      "subtitle": "Vous avez été invité à rejoindre un espace de travail sur DocuMind.",
+      "accept": "Accepter l'invitation",
+      "accepting": "Rejoindre...",
+      "success": "Vous avez rejoint l'espace !",
+      "goToDashboard": "Aller au tableau de bord",
+      "invalid": "Cette invitation est invalide ou a expiré.",
+      "wrongEmail": "Cette invitation a été envoyée à une autre adresse email."
+    }
+  },
+  "profile": {
+    "title": "Profil & Paramètres",
+    "subtitle": "Gérez vos informations personnelles et vos paramètres de sécurité.",
+    "signOut": "Se déconnecter",
+    "tabs": {
+      "profile": "Profil",
+      "password": "Mot de passe"
+    },
+    "sections": {
+      "avatar": "Photo de profil",
+      "personalInfo": "Informations personnelles",
+      "changePassword": "Changer le mot de passe",
+      "changePasswordDesc": "Assurez-vous que votre nouveau mot de passe contient au moins 8 caractères."
+    },
+    "fields": {
+      "name": "Nom complet",
+      "email": "Email",
+      "emailNote": "L'adresse email ne peut pas être modifiée.",
+      "memberSince": "Membre depuis",
+      "avatarUrl": "URL de l'avatar",
+      "avatarPlaceholder": "https://exemple.com/avatar.jpg"
+    },
+    "password": {
+      "current": "Mot de passe actuel",
+      "new": "Nouveau mot de passe",
+      "confirm": "Confirmer le nouveau mot de passe",
+      "currentPlaceholder": "Entrez le mot de passe actuel",
+      "newPlaceholder": "Min. 8 caractères",
+      "confirmPlaceholder": "Répétez le nouveau mot de passe",
+      "mismatch": "Les mots de passe ne correspondent pas.",
+      "match": "Les mots de passe correspondent",
+      "success": "Mot de passe mis à jour !",
+      "successDesc": "Votre mot de passe a été mis à jour.",
+      "changeAgain": "Modifier à nouveau"
+    },
+    "save": "Enregistrer",
+    "saved": "Enregistré !",
+    "saving": "Enregistrement..."
   }
 }

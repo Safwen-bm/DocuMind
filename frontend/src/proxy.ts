@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const intlMiddleware = createMiddleware(routing)
 
-const protectedRoutes = ['/dashboard']
+const protectedRoutes = ['/dashboard', '/workspace', '/invitations', '/profile']
 const authRoutes = ['/login', '/register', '/verify-otp', '/forgot-password', '/reset-password']
 
 export default function middleware(request: NextRequest) {

@@ -1,4 +1,11 @@
-import { Controller, Get, Patch, Body, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Body,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtGuard } from '../auth/jwt.guard';
 import { IsOptional, IsString } from 'class-validator';
@@ -26,5 +33,17 @@ export class UsersController {
   @Patch('me')
   updateProfile(@Request() req, @Body() dto: UpdateProfileDto) {
     return this.usersService.updateProfile(req.user.id, dto);
+  }
+
+  @Patch('me/password')
+  changePassword(
+    @Request() req,
+    @Body() dto: { currentPassword: string; newPassword: string },
+  ) {
+    return this.usersService.changePassword(
+      req.user.id,
+      dto.currentPassword,
+      dto.newPassword,
+    );
   }
 }
