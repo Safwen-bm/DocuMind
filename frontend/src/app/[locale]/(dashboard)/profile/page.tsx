@@ -5,10 +5,10 @@ import { useMutation } from "@tanstack/react-query";
 import { useTranslations, useLocale } from "next-intl";
 import { useAuthStore } from "@/store/auth.store";
 import { userApi } from "@/lib/user.api";
+import { AvatarUpload } from "@/components/dashboard/avatar-upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   User,
   Lock,
@@ -16,7 +16,6 @@ import {
   Calendar,
   CheckCircle,
   Loader2,
-  Camera,
   Shield,
   AlertTriangle,
 } from "lucide-react";
@@ -50,8 +49,8 @@ export default function ProfilePage() {
   }, [user]);
 
   const updateMutation = useMutation({
-    mutationFn: () =>
-      userApi.updateProfile({ nom, avatarUrl: avatarUrl || undefined }),
+    mutationFn: (data?: { nom?: string; avatarUrl?: string }) =>
+      userApi.updateProfile(data ?? { nom, avatarUrl: avatarUrl || undefined }),
     onSuccess: (updated) => {
       if (token) setAuth(updated, token);
       setProfileSaved(true);
@@ -80,7 +79,7 @@ export default function ProfilePage() {
   function handleProfileSave(e: React.FormEvent) {
     e.preventDefault();
     setProfileError("");
-    updateMutation.mutate();
+    updateMutation.mutate(undefined);
   }
 
   function handlePasswordSave(e: React.FormEvent) {
@@ -92,6 +91,12 @@ export default function ProfilePage() {
       return;
     }
     passwordMutation.mutate();
+  }
+
+  function handleAvatarUpload(url: string) {
+    setAvatarUrl(url);
+    // Immediately save the new avatar URL to the backend
+    updateMutation.mutate({ nom, avatarUrl: url });
   }
 
   const initials = user?.nom
@@ -128,7 +133,7 @@ export default function ProfilePage() {
                   "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors text-left",
                   tab === key
                     ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
@@ -148,7 +153,7 @@ export default function ProfilePage() {
                 "flex flex-1 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
                 tab === key
                   ? "border-primary bg-primary/10 text-primary"
-                  : "border-border text-muted-foreground hover:text-foreground",
+                  : "border-border text-muted-foreground hover:text-foreground"
               )}
             >
               <Icon className="h-4 w-4" />
@@ -159,6 +164,7 @@ export default function ProfilePage() {
 
         {/* Content */}
         <div className="min-w-0 flex-1 space-y-6">
+
           {/* ── PROFILE TAB ── */}
           {tab === "profile" && (
             <>
@@ -168,31 +174,32 @@ export default function ProfilePage() {
                   {t("sections.avatar")}
                 </h2>
                 <div className="flex items-center gap-5">
-                  <div className="relative">
-                    <Avatar className="h-20 w-20">
-                      {avatarUrl && <AvatarImage src={avatarUrl} alt={nom} />}
-                      <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">
-                        {initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-primary">
-                      <Camera className="h-3.5 w-3.5 text-primary-foreground" />
-                    </div>
-                  </div>
+                  {/* Cloudinary upload component */}
+                  <AvatarUpload
+                    currentUrl={avatarUrl}
+                    initials={initials}
+                    onUpload={handleAvatarUpload}
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-foreground">{user?.nom}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {user?.email}
+                    <p className="text-sm text-muted-foreground">{user?.email}</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Click the camera icon to upload a new photo.
+                      JPG, PNG or GIF. Max 5MB.
                     </p>
-                    <div className="mt-3 space-y-1.5">
-                      <Label className="text-xs">{t("fields.avatarUrl")}</Label>
-                      <Input
-                        placeholder={t("fields.avatarPlaceholder")}
-                        value={avatarUrl}
-                        onChange={(e) => setAvatarUrl(e.target.value)}
-                        className="h-8 text-xs"
-                      />
-                    </div>
+                    {/* Save status indicator */}
+                    {updateMutation.isPending && (
+                      <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Saving...
+                      </p>
+                    )}
+                    {profileSaved && (
+                      <p className="text-xs text-green-500 mt-1 flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3" />
+                        Avatar updated
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -242,12 +249,9 @@ export default function ProfilePage() {
                           locale === "ar"
                             ? "ar-TN"
                             : locale === "fr"
-                              ? "fr-FR"
-                              : "en-US",
-                          {
-                            month: "long",
-                            year: "numeric",
-                          },
+                            ? "fr-FR"
+                            : "en-US",
+                          { month: "long", year: "numeric" }
                         )}
                       </span>
                     </span>
@@ -366,7 +370,7 @@ export default function ProfilePage() {
                           "text-xs flex items-center gap-1",
                           newPassword === confirmPassword
                             ? "text-green-500"
-                            : "text-destructive",
+                            : "text-destructive"
                         )}
                       >
                         {newPassword === confirmPassword ? (

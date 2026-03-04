@@ -21,6 +21,10 @@ model Utilisateur {
 
   tokens              TokenVerification[]
   memberships         MembreWorkspace[]
+  documents           Document[]
+  versions            VersionDocument[]
+  activites           Activite[]
+  notifications       Notification[]
 
   @@map("utilisateurs")
 }
@@ -55,6 +59,10 @@ model Workspace {
 
   membres        MembreWorkspace[]
   invitations    Invitation[]
+  dossiers       Dossier[]
+  documents      Document[]
+  activites      Activite[]
+  notifications  Notification[]
 
   @@map("workspaces")
 }
@@ -92,4 +100,105 @@ model Invitation {
   workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@map("invitations")
+}
+
+model Dossier {
+  id           String    @id @default(uuid())
+  nom          String
+  workspaceId  String
+  parentId     String?
+  createdById  String?
+  dateCreation DateTime  @default(now())
+
+  workspace    Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  parent       Dossier?   @relation("DossierEnfants", fields: [parentId], references: [id], onDelete: Cascade)
+  enfants      Dossier[]  @relation("DossierEnfants")
+  documents    Document[]
+
+  @@map("dossiers")
+}
+
+model Document {
+  id           String    @id @default(uuid())
+  titre        String    @default("Sans titre")
+  contenu      Json?
+  workspaceId  String
+  dossierId    String?
+  authorId     String
+  estFavori    Boolean   @default(false)
+  estArchive   Boolean   @default(false)
+  dateCreation DateTime  @default(now())
+  dateMiseAJour DateTime @updatedAt
+
+  workspace    Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  dossier      Dossier?        @relation(fields: [dossierId], references: [id], onDelete: SetNull)
+  author       Utilisateur     @relation(fields: [authorId], references: [id])
+  versions     VersionDocument[]
+
+  @@map("documents")
+}
+
+model VersionDocument {
+  id           String    @id @default(uuid())
+  documentId   String
+  contenu      Json
+  numero       Int
+  createdById  String
+  dateCreation DateTime  @default(now())
+
+  document     Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdBy    Utilisateur @relation(fields: [createdById], references: [id])
+
+  @@map("versions_document")
+}
+
+model Activite {
+  id           String       @id @default(uuid())
+  workspaceId  String
+  userId       String
+  action       ActionType
+  cible        String
+  cibleId      String?
+  dateCreation DateTime     @default(now())
+
+  workspace    Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user         Utilisateur @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("activites")
+}
+
+enum ActionType {
+  DOCUMENT_CREE
+  DOCUMENT_MODIFIE
+  DOCUMENT_SUPPRIME
+  DOCUMENT_FAVORI
+  DOSSIER_CREE
+  DOSSIER_SUPPRIME
+  MEMBRE_INVITE
+  MEMBRE_REJOINT
+  VERSION_RESTAUREE
+}
+
+model Notification {
+  id           String           @id @default(uuid())
+  userId       String
+  workspaceId  String?
+  type         NotificationType
+  message      String
+  lu           Boolean          @default(false)
+  lien         String?
+  dateCreation DateTime         @default(now())
+
+  user         Utilisateur @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace    Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+enum NotificationType {
+  INVITATION
+  MENTION
+  DOCUMENT_PARTAGE
+  MEMBRE_REJOINT
+  SYSTEME
 }

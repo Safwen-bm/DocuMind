@@ -6,8 +6,9 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
-import { Role } from '@prisma/client';
+import { Role, NotificationType } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -15,6 +16,7 @@ export class InvitationsService {
   constructor(
     private prisma: PrismaService,
     private mailService: MailService,
+    private notifications: NotificationsService,
   ) {}
 
   async invite(
@@ -22,7 +24,6 @@ export class InvitationsService {
     workspaceId: string,
     dto: CreateInvitationDto,
   ) {
-    // Check requester is at least ADMINISTRATEUR
     const requester = await this.prisma.membreWorkspace.findUnique({
       where: {
         utilisateurId_workspaceId: {
@@ -45,7 +46,6 @@ export class InvitationsService {
       throw new ForbiddenException('Permission insuffisante.');
     }
 
-    // Check if user is already a member
     const existingUser = await this.prisma.utilisateur.findUnique({
       where: { email: dto.email },
     });
@@ -64,13 +64,12 @@ export class InvitationsService {
       }
     }
 
-    // Delete any existing pending invitation for this email+workspace
     await this.prisma.invitation.deleteMany({
       where: { email: dto.email, workspaceId },
     });
 
     const token = uuidv4();
-    const expiration = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const expiration = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     await this.prisma.invitation.create({
       data: {
@@ -82,12 +81,22 @@ export class InvitationsService {
       },
     });
 
-    // Send invitation email
     await this.mailService.sendInvitationEmail(
       dto.email,
       requester.workspace.nom,
       token,
     );
+
+    // Notify the invited user if they already have an account
+    if (existingUser) {
+      await this.notifications.create({
+        userId: existingUser.id,
+        type: NotificationType.INVITATION,
+        message: `You've been invited to join "${requester.workspace.nom}"`,
+        workspaceId,
+        lien: `/invitations/accept?token=${token}`,
+      });
+    }
 
     return { message: 'Invitation envoyée.' };
   }
@@ -104,7 +113,6 @@ export class InvitationsService {
       throw new BadRequestException('Invitation expirée.');
     }
 
-    // Check user email matches invitation email
     const user = await this.prisma.utilisateur.findUnique({
       where: { id: userId },
     });
@@ -115,7 +123,6 @@ export class InvitationsService {
       );
     }
 
-    // Check not already a member
     const alreadyMember = await this.prisma.membreWorkspace.findUnique({
       where: {
         utilisateurId_workspaceId: {
@@ -130,7 +137,6 @@ export class InvitationsService {
       return { message: 'Vous êtes déjà membre de ce workspace.' };
     }
 
-    // Add user to workspace
     await this.prisma.membreWorkspace.create({
       data: {
         utilisateurId: userId,
@@ -140,6 +146,21 @@ export class InvitationsService {
     });
 
     await this.prisma.invitation.delete({ where: { token } });
+
+    // Notify workspace owner that someone joined
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id: invitation.workspaceId },
+      select: { proprietaireId: true, nom: true },
+    });
+
+    if (workspace && workspace.proprietaireId !== userId) {
+      await this.notifications.create({
+        userId: workspace.proprietaireId,
+        type: NotificationType.MEMBRE_REJOINT,
+        message: `${user.nom} joined your workspace "${workspace.nom}"`,
+        workspaceId: invitation.workspaceId,
+      });
+    }
 
     return {
       message: 'Invitation acceptée.',

@@ -235,6 +235,8 @@
       "members": "الأعضاء",
       "settings": "الإعدادات",
       "documents": "المستندات",
+      "documentsNav": "المستندات",
+      "editor": "المحرر",
       "currentWorkspace": "المساحة الحالية",
       "workspaces": "مساحات العمل",
       "welcomeBack": "مرحباً بعودتك",
@@ -297,6 +299,139 @@
       "goToDashboard": "الذهاب إلى لوحة التحكم",
       "invalid": "هذه الدعوة غير صالحة أو منتهية الصلاحية.",
       "wrongEmail": "هذه الدعوة أُرسلت إلى عنوان بريد إلكتروني مختلف."
+    },
+    "home": {
+      "welcomeBack": "مرحباً بعودتك، {name} 👋",
+      "activitySubtitle": "إليك نظرة عامة على نشاط مساحاتك.",
+      "newWorkspace": "مساحة جديدة",
+      "stats": {
+        "workspaces": "مساحات العمل",
+        "documents": "إجمالي المستندات",
+        "members": "أعضاء الفريق",
+        "starred": "المفضلة"
+      },
+      "starred": "المستندات المفضلة",
+      "noStarred": "لا توجد مستندات مفضلة",
+      "noStarredDesc": "أضف مستندات للمفضلة للوصول إليها بسرعة",
+      "recentActivity": "النشاط الأخير",
+      "noActivity": "لا يوجد نشاط بعد",
+      "noActivityDesc": "سيظهر النشاط هنا مع عمل فريقك",
+      "recentlyEdited": "تم تعديله مؤخراً",
+      "myWorkspaces": "مساحاتي",
+      "new": "جديد",
+      "noWorkspaces": "لا توجد مساحات عمل",
+      "noWorkspacesDesc": "أنشئ مساحة عملك الأولى لبدء تنظيم معرفة فريقك.",
+      "membersCount": "{count} أعضاء",
+      "actions": {
+        "DOCUMENT_CREE": "أنشأ",
+        "DOCUMENT_MODIFIE": "عدّل",
+        "DOCUMENT_SUPPRIME": "حذف",
+        "DOCUMENT_FAVORI": "أضاف للمفضلة",
+        "DOSSIER_CREE": "أنشأ المجلد",
+        "DOSSIER_SUPPRIME": "حذف المجلد",
+        "MEMBRE_INVITE": "دعا إلى",
+        "MEMBRE_REJOINT": "انضم إلى",
+        "VERSION_RESTAUREE": "استعاد نسخة من"
+      },
+      "modal": {
+        "title": "إنشاء مساحة عمل",
+        "subtitle": "مساحة العمل هي مساحة مشتركة لوثائق فريقك.",
+        "nameLabel": "اسم المساحة",
+        "namePlaceholder": "مثال: فريق الهندسة",
+        "descLabel": "الوصف",
+        "descPlaceholder": "ما الغرض من هذه المساحة؟",
+        "cancel": "إلغاء",
+        "submit": "إنشاء المساحة"
+      }
+    },
+    "overview": {
+      "newDocument": "مستند جديد",
+      "members": "أعضاء",
+      "settingsDesc": "الاسم، الوصف، منطقة الخطر",
+      "recentDocs": "المستندات الأخيرة",
+      "viewAll": "عرض الكل",
+      "noDocsYet": "لا توجد مستندات",
+      "createFirst": "إنشاء أول مستند",
+      "recentActivity": "النشاط الأخير",
+      "noActivityYet": "لا يوجد نشاط بعد"
+    },
+    "documents": {
+      "folders": "المجلدات",
+      "newFolder": "مجلد جديد",
+      "allDocuments": "جميع المستندات",
+      "noFoldersYet": "لا توجد مجلدات",
+      "breadcrumb": "المستندات",
+      "newDocument": "مستند جديد",
+      "folder": "مجلد",
+      "noDocsInFolder": "لا توجد مستندات في {folder}",
+      "noDocsYet": "لا توجد مستندات بعد",
+      "createFirstDesc": "أنشئ مستندك الأول لبدء توثيق معرفة فريقك.",
+      "readOnlyDesc": "لم يتم إنشاء أي مستندات في هذه المساحة بعد.",
+      "createDoc": "مستند جديد",
+      "createDocModal": {
+        "title": "مستند جديد",
+        "desc": "أعط مستندك عنواناً للبدء.",
+        "placeholder": "عنوان المستند...",
+        "cancel": "إلغاء",
+        "submit": "إنشاء"
+      },
+      "createFolderModal": {
+        "title": "مجلد جديد",
+        "desc": "نظّم مستنداتك باستخدام المجلدات.",
+        "placeholder": "اسم المجلد...",
+        "cancel": "إلغاء",
+        "submit": "إنشاء"
+      },
+      "renameFolderModal": {
+        "title": "إعادة تسمية المجلد",
+        "cancel": "إلغاء",
+        "submit": "حفظ"
+      },
+      "deleteDocModal": {
+        "title": "حذف المستند؟",
+        "desc": "سيتم حذفه نهائياً. لا يمكن التراجع عن هذا.",
+        "cancel": "إلغاء",
+        "submit": "حذف"
+      },
+      "deleteFolderModal": {
+        "title": "حذف المجلد؟",
+        "desc": "وجميع مستنداته سيتم حذفها نهائياً.",
+        "cancel": "إلغاء",
+        "submit": "حذف"
+      },
+      "tooltips": {
+        "star": "إضافة للمفضلة",
+        "unstar": "إزالة من المفضلة",
+        "delete": "حذف",
+        "rename": "إعادة تسمية"
+      }
+    },
+    "editor": {
+      "back": "المستندات",
+      "unsaved": "● تغييرات غير محفوظة",
+      "saved": "تم الحفظ {time}",
+      "addToStarred": "إضافة للمفضلة",
+      "removeFromStarred": "إزالة من المفضلة",
+      "versionHistory": "سجل الإصدارات",
+      "save": "حفظ",
+      "saving": "جارٍ الحفظ...",
+      "placeholder": "ابدأ الكتابة هنا...",
+      "untitled": "بدون عنوان",
+      "unsavedWarning": "لديك تغييرات غير محفوظة. هل تريد المغادرة؟",
+      "insertImage": "إدراج صورة",
+      "textColor": "لون النص",
+      "highlightColor": "لون التمييز",
+      "versionHistoryPanel": {
+        "title": "سجل الإصدارات",
+        "noVersions": "لا توجد إصدارات بعد",
+        "noVersionsDesc": "تُنشأ الإصدارات في كل مرة تضغط على حفظ."
+      },
+      "restoreModal": {
+        "title": "استعادة هذا الإصدار؟",
+        "desc": "سيصبح المحتوى الحالي. سيتم حفظ الإصدار الحالي تلقائياً قبل الاستعادة.",
+        "cancel": "إلغاء",
+        "submit": "استعادة"
+      }
     }
   },
   "profile": {

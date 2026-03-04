@@ -235,6 +235,8 @@
       "members": "Members",
       "settings": "Settings",
       "documents": "Documents",
+      "documentsNav": "Documents",
+      "editor": "Editor",
       "currentWorkspace": "Current Workspace",
       "workspaces": "Workspaces",
       "welcomeBack": "Welcome back",
@@ -297,6 +299,139 @@
       "goToDashboard": "Go to Dashboard",
       "invalid": "This invitation is invalid or has expired.",
       "wrongEmail": "This invitation was sent to a different email address."
+    },
+    "home": {
+      "welcomeBack": "Welcome back, {name} 👋",
+      "activitySubtitle": "Here's an overview of your workspace activity.",
+      "newWorkspace": "New Workspace",
+      "stats": {
+        "workspaces": "Total Workspaces",
+        "documents": "Total Documents",
+        "members": "Team Members",
+        "starred": "Starred"
+      },
+      "starred": "Starred Documents",
+      "noStarred": "No starred documents yet",
+      "noStarredDesc": "Star documents to find them quickly",
+      "recentActivity": "Recent Activity",
+      "noActivity": "No activity yet",
+      "noActivityDesc": "Activity will show here as your team works",
+      "recentlyEdited": "Recently Edited",
+      "myWorkspaces": "My Workspaces",
+      "new": "New",
+      "noWorkspaces": "No workspaces yet",
+      "noWorkspacesDesc": "Create your first workspace to start organizing your team's knowledge.",
+      "membersCount": "{count} members",
+      "actions": {
+        "DOCUMENT_CREE": "created",
+        "DOCUMENT_MODIFIE": "edited",
+        "DOCUMENT_SUPPRIME": "deleted",
+        "DOCUMENT_FAVORI": "starred",
+        "DOSSIER_CREE": "created folder",
+        "DOSSIER_SUPPRIME": "deleted folder",
+        "MEMBRE_INVITE": "invited to",
+        "MEMBRE_REJOINT": "joined",
+        "VERSION_RESTAUREE": "restored version of"
+      },
+      "modal": {
+        "title": "Create a workspace",
+        "subtitle": "A workspace is a shared space for your team's documents.",
+        "nameLabel": "Workspace name",
+        "namePlaceholder": "e.g. Engineering Team",
+        "descLabel": "Description",
+        "descPlaceholder": "What is this workspace for?",
+        "cancel": "Cancel",
+        "submit": "Create Workspace"
+      }
+    },
+    "overview": {
+      "newDocument": "New Document",
+      "members": "members",
+      "settingsDesc": "Name, description, danger zone",
+      "recentDocs": "Recent Documents",
+      "viewAll": "View all",
+      "noDocsYet": "No documents yet",
+      "createFirst": "Create first document",
+      "recentActivity": "Recent Activity",
+      "noActivityYet": "No activity yet"
+    },
+    "documents": {
+      "folders": "Folders",
+      "newFolder": "New folder",
+      "allDocuments": "All Documents",
+      "noFoldersYet": "No folders yet",
+      "breadcrumb": "Documents",
+      "newDocument": "New Document",
+      "folder": "Folder",
+      "noDocsInFolder": "No documents in {folder}",
+      "noDocsYet": "No documents yet",
+      "createFirstDesc": "Create your first document to start capturing your team's knowledge.",
+      "readOnlyDesc": "No documents have been created in this workspace yet.",
+      "createDoc": "New Document",
+      "createDocModal": {
+        "title": "New Document",
+        "desc": "Give your document a title to get started.",
+        "placeholder": "Document title...",
+        "cancel": "Cancel",
+        "submit": "Create"
+      },
+      "createFolderModal": {
+        "title": "New Folder",
+        "desc": "Organize your documents with folders.",
+        "placeholder": "Folder name...",
+        "cancel": "Cancel",
+        "submit": "Create"
+      },
+      "renameFolderModal": {
+        "title": "Rename Folder",
+        "cancel": "Cancel",
+        "submit": "Save"
+      },
+      "deleteDocModal": {
+        "title": "Delete document?",
+        "desc": "will be permanently deleted. This cannot be undone.",
+        "cancel": "Cancel",
+        "submit": "Delete"
+      },
+      "deleteFolderModal": {
+        "title": "Delete folder?",
+        "desc": "and all its documents will be permanently deleted.",
+        "cancel": "Cancel",
+        "submit": "Delete"
+      },
+      "tooltips": {
+        "star": "Star",
+        "unstar": "Unstar",
+        "delete": "Delete",
+        "rename": "Rename"
+      }
+    },
+    "editor": {
+      "back": "Documents",
+      "unsaved": "● Unsaved changes",
+      "saved": "Saved {time}",
+      "addToStarred": "Add to starred",
+      "removeFromStarred": "Remove from starred",
+      "versionHistory": "Version history",
+      "save": "Save",
+      "saving": "Saving...",
+      "placeholder": "Start writing your document...",
+      "untitled": "Untitled",
+      "unsavedWarning": "You have unsaved changes. Leave anyway?",
+      "insertImage": "Insert image",
+      "textColor": "Text color",
+      "highlightColor": "Highlight color",
+      "versionHistoryPanel": {
+        "title": "Version History",
+        "noVersions": "No versions yet",
+        "noVersionsDesc": "Versions are created each time you click Save."
+      },
+      "restoreModal": {
+        "title": "Restore this version?",
+        "desc": "will become the current content. Your current version will be saved automatically before restoring.",
+        "cancel": "Cancel",
+        "submit": "Restore"
+      }
     }
   },
   "profile": {

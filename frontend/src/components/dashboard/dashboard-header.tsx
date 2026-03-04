@@ -4,12 +4,13 @@ import { useParams, usePathname } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { useTranslations } from "next-intl"
 import {
-  Menu, LayoutDashboard, Users,
-  Settings, FolderOpen, ChevronRight, User,
+  Menu, LayoutDashboard, Users, Settings,
+  FolderOpen, ChevronRight, User, FileText,
 } from "lucide-react"
 import { ThemeToggle } from "@/components/shared/theme-toggle"
 import { LanguageSwitcher } from "@/components/shared/language-switcher"
 import { Button } from "@/components/ui/button"
+import { NotificationBell } from "@/components/dashboard/notification-bell"
 import { workspaceApi } from "@/lib/workspace.api"
 import { Workspace } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -50,14 +51,27 @@ export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
     if (!workspaceId) {
       return [{ label: t("dashboard"), icon: LayoutDashboard, active: true }]
     }
+
     const wsName = currentWorkspace?.nom ?? "..."
     const base: BreadcrumbItem = { label: wsName, icon: FolderOpen, active: false }
+
+    if (pathname.includes("/documents/") && !pathname.endsWith("/documents")) {
+      return [
+        base,
+        { label: t("documentsNav"), icon: FileText, active: false },
+        { label: t("editor"), icon: FileText, active: true },
+      ]
+    }
+    if (pathname.endsWith("/documents")) {
+      return [base, { label: t("documentsNav"), icon: FileText, active: true }]
+    }
     if (pathname.endsWith("/members")) {
       return [base, { label: t("members"), icon: Users, active: true }]
     }
     if (pathname.endsWith("/settings")) {
       return [base, { label: t("settings"), icon: Settings, active: true }]
     }
+
     return [{ label: wsName, icon: FolderOpen, active: true }]
   }
 
@@ -66,7 +80,6 @@ export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-background px-4 lg:px-6">
       <div className="flex items-center gap-3">
-        {/* Mobile only hamburger */}
         <Button
           variant="ghost"
           size="sm"
@@ -76,7 +89,6 @@ export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
           <Menu className="h-5 w-5" />
         </Button>
 
-        {/* Breadcrumb */}
         <nav className="flex items-center gap-1.5">
           {breadcrumbs.map((crumb, i) => (
             <div key={i} className="flex items-center gap-1.5">
@@ -99,6 +111,7 @@ export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
       </div>
 
       <div className="flex items-center gap-1">
+        <NotificationBell />
         <LanguageSwitcher locale={locale} />
         <ThemeToggle />
       </div>

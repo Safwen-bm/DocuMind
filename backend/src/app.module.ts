@@ -9,6 +9,10 @@ import { UsersModule } from './users/users.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
 import { MembresModule } from './membres/membres.module';
 import { InvitationsModule } from './invitations/invitations.module';
+import { ActiviteModule } from './activite/activite.module';
+import { DossiersModule } from './dossiers/dossiers.module';
+import { DocumentsModule } from './documents/documents.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -20,6 +24,10 @@ import { InvitationsModule } from './invitations/invitations.module';
     WorkspacesModule,
     MembresModule,
     InvitationsModule,
+    ActiviteModule,
+    DossiersModule,
+    DocumentsModule,
+    NotificationsModule,
   ],
   providers: [
     {

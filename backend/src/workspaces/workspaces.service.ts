@@ -120,4 +120,22 @@ export class WorkspacesService {
 
     if (!hasRole) throw new ForbiddenException('Permission insuffisante.');
   }
+
+  async getActivity(userId: string, workspaceId: string) {
+    await this.checkRole(userId, workspaceId, [
+      Role.LECTEUR,
+      Role.EDITEUR,
+      Role.ADMINISTRATEUR,
+      Role.PROPRIETAIRE,
+    ]);
+
+    return this.prisma.activite.findMany({
+      where: { workspaceId },
+      include: {
+        user: { select: { id: true, nom: true, avatarUrl: true } },
+      },
+      orderBy: { dateCreation: 'desc' },
+      take: 20,
+    });
+  }
 }

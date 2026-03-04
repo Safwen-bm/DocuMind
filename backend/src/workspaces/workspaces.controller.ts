@@ -47,4 +47,9 @@ export class WorkspacesController {
   remove(@Request() req, @Param('id') id: string) {
     return this.workspacesService.remove(req.user.id, id);
   }
+
+  @Get(':id/activity')
+  getActivity(@Request() req, @Param('id') id: string) {
+    return this.workspacesService.getActivity(req.user.id, id);
+  }
 }

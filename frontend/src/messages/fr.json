@@ -235,6 +235,8 @@
       "members": "Membres",
       "settings": "Paramètres",
       "documents": "Documents",
+      "documentsNav": "Documents",
+      "editor": "Éditeur",
       "currentWorkspace": "Espace actuel",
       "workspaces": "Espaces de travail",
       "welcomeBack": "Bon retour",
@@ -297,6 +299,139 @@
       "goToDashboard": "Aller au tableau de bord",
       "invalid": "Cette invitation est invalide ou a expiré.",
       "wrongEmail": "Cette invitation a été envoyée à une autre adresse email."
+    },
+    "home": {
+      "welcomeBack": "Bon retour, {name} 👋",
+      "activitySubtitle": "Voici un aperçu de l'activité de vos espaces.",
+      "newWorkspace": "Nouvel espace",
+      "stats": {
+        "workspaces": "Espaces de travail",
+        "documents": "Total documents",
+        "members": "Membres de l'équipe",
+        "starred": "Favoris"
+      },
+      "starred": "Documents favoris",
+      "noStarred": "Aucun document favori",
+      "noStarredDesc": "Ajoutez des favoris pour les retrouver rapidement",
+      "recentActivity": "Activité récente",
+      "noActivity": "Aucune activité",
+      "noActivityDesc": "L'activité apparaîtra ici au fil du travail de votre équipe",
+      "recentlyEdited": "Récemment modifiés",
+      "myWorkspaces": "Mes espaces de travail",
+      "new": "Nouveau",
+      "noWorkspaces": "Aucun espace de travail",
+      "noWorkspacesDesc": "Créez votre premier espace pour commencer à organiser les connaissances de votre équipe.",
+      "membersCount": "{count} membres",
+      "actions": {
+        "DOCUMENT_CREE": "a créé",
+        "DOCUMENT_MODIFIE": "a modifié",
+        "DOCUMENT_SUPPRIME": "a supprimé",
+        "DOCUMENT_FAVORI": "a mis en favori",
+        "DOSSIER_CREE": "a créé le dossier",
+        "DOSSIER_SUPPRIME": "a supprimé le dossier",
+        "MEMBRE_INVITE": "a invité dans",
+        "MEMBRE_REJOINT": "a rejoint",
+        "VERSION_RESTAUREE": "a restauré la version de"
+      },
+      "modal": {
+        "title": "Créer un espace de travail",
+        "subtitle": "Un espace est un espace partagé pour les documents de votre équipe.",
+        "nameLabel": "Nom de l'espace",
+        "namePlaceholder": "ex. Équipe Engineering",
+        "descLabel": "Description",
+        "descPlaceholder": "À quoi sert cet espace ?",
+        "cancel": "Annuler",
+        "submit": "Créer l'espace"
+      }
+    },
+    "overview": {
+      "newDocument": "Nouveau document",
+      "members": "membres",
+      "settingsDesc": "Nom, description, zone dangereuse",
+      "recentDocs": "Documents récents",
+      "viewAll": "Voir tout",
+      "noDocsYet": "Aucun document",
+      "createFirst": "Créer le premier document",
+      "recentActivity": "Activité récente",
+      "noActivityYet": "Aucune activité"
+    },
+    "documents": {
+      "folders": "Dossiers",
+      "newFolder": "Nouveau dossier",
+      "allDocuments": "Tous les documents",
+      "noFoldersYet": "Aucun dossier",
+      "breadcrumb": "Documents",
+      "newDocument": "Nouveau document",
+      "folder": "Dossier",
+      "noDocsInFolder": "Aucun document dans {folder}",
+      "noDocsYet": "Aucun document",
+      "createFirstDesc": "Créez votre premier document pour commencer à capturer les connaissances de votre équipe.",
+      "readOnlyDesc": "Aucun document n'a encore été créé dans cet espace.",
+      "createDoc": "Nouveau document",
+      "createDocModal": {
+        "title": "Nouveau document",
+        "desc": "Donnez un titre à votre document pour commencer.",
+        "placeholder": "Titre du document...",
+        "cancel": "Annuler",
+        "submit": "Créer"
+      },
+      "createFolderModal": {
+        "title": "Nouveau dossier",
+        "desc": "Organisez vos documents avec des dossiers.",
+        "placeholder": "Nom du dossier...",
+        "cancel": "Annuler",
+        "submit": "Créer"
+      },
+      "renameFolderModal": {
+        "title": "Renommer le dossier",
+        "cancel": "Annuler",
+        "submit": "Enregistrer"
+      },
+      "deleteDocModal": {
+        "title": "Supprimer le document ?",
+        "desc": "sera supprimé définitivement. Cette action est irréversible.",
+        "cancel": "Annuler",
+        "submit": "Supprimer"
+      },
+      "deleteFolderModal": {
+        "title": "Supprimer le dossier ?",
+        "desc": "et tous ses documents seront supprimés définitivement.",
+        "cancel": "Annuler",
+        "submit": "Supprimer"
+      },
+      "tooltips": {
+        "star": "Favori",
+        "unstar": "Retirer des favoris",
+        "delete": "Supprimer",
+        "rename": "Renommer"
+      }
+    },
+    "editor": {
+      "back": "Documents",
+      "unsaved": "● Modifications non sauvegardées",
+      "saved": "Enregistré {time}",
+      "addToStarred": "Ajouter aux favoris",
+      "removeFromStarred": "Retirer des favoris",
+      "versionHistory": "Historique des versions",
+      "save": "Enregistrer",
+      "saving": "Enregistrement...",
+      "placeholder": "Commencez à écrire votre document...",
+      "untitled": "Sans titre",
+      "unsavedWarning": "Vous avez des modifications non sauvegardées. Quitter quand même ?",
+      "insertImage": "Insérer une image",
+      "textColor": "Couleur du texte",
+      "highlightColor": "Couleur de surbrillance",
+      "versionHistoryPanel": {
+        "title": "Historique des versions",
+        "noVersions": "Aucune version",
+        "noVersionsDesc": "Les versions sont créées à chaque enregistrement."
+      },
+      "restoreModal": {
+        "title": "Restaurer cette version ?",
+        "desc": "deviendra le contenu actuel. Votre version actuelle sera sauvegardée automatiquement.",
+        "cancel": "Annuler",
+        "submit": "Restaurer"
+      }
     }
   },
   "profile": {

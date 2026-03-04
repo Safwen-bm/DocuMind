@@ -115,10 +115,92 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* TipTap editor prose styles */
+.prose h1 {
+  @apply text-2xl font-bold mb-4 mt-6;
+}
+
+.prose h2 {
+  @apply text-xl font-bold mb-3 mt-5;
+}
+
+.prose h3 {
+  @apply text-lg font-semibold mb-2 mt-4;
+}
+
+.prose p {
+  @apply mb-3 leading-7;
+}
+
+.prose ul {
+  @apply list-disc pl-6 mb-3 space-y-1;
+}
+
+.prose ol {
+  @apply list-decimal pl-6 mb-3 space-y-1;
+}
+
+.prose li {
+  @apply leading-7;
+}
+
+.prose blockquote {
+  @apply border-l-4 border-primary/40 pl-4 italic text-muted-foreground my-4;
+}
+
+.prose code {
+  @apply rounded bg-muted px-1.5 py-0.5 font-mono text-sm;
+}
+
+.prose pre {
+  @apply rounded-lg bg-muted p-4 font-mono text-sm overflow-x-auto my-4;
+}
+
+.prose hr {
+  @apply border-border my-6;
+}
+
+.prose strong {
+  @apply font-bold;
+}
+
+.prose em {
+  @apply italic;
+}
+
+.prose mark {
+  @apply bg-yellow-200 dark:bg-yellow-900/50 px-0.5 rounded;
+}
+
+.prose [style*="text-align: center"] {
+  @apply text-center;
+}
+
+.prose [style*="text-align: right"] {
+  @apply text-right;
+}
+
+/* TipTap placeholder */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  @apply text-muted-foreground pointer-events-none float-left h-0;
+}
+
+/* Hide scrollbar for toolbar */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
