@@ -8,36 +8,37 @@ datasource db {
 }
 
 model Utilisateur {
-  id                  String    @id @default(uuid())
-  nom                 String
-  email               String    @unique
-  motDePasse          String
-  avatarUrl           String?
-  estActif            Boolean   @default(false)
-  tentativesEchec     Int       @default(0)
-  verrouillageJusqua  DateTime?
-  dateCreation        DateTime  @default(now())
-  dateMiseAJour       DateTime  @updatedAt
+  id                 String    @id @default(uuid())
+  nom                String
+  email              String    @unique
+  motDePasse         String
+  avatarUrl          String?
+  estActif           Boolean   @default(false)
+  tentativesEchec    Int       @default(0)
+  verrouillageJusqua DateTime?
+  dateCreation       DateTime  @default(now())
+  dateMiseAJour      DateTime  @updatedAt
 
-  tokens              TokenVerification[]
-  memberships         MembreWorkspace[]
-  documents           Document[]
-  versions            VersionDocument[]
-  activites           Activite[]
-  notifications       Notification[]
+  tokens        TokenVerification[]
+  memberships   MembreWorkspace[]
+  documents     Document[]
+  versions      VersionDocument[]
+  activites     Activite[]
+  notifications Notification[]
+  conversations Conversation[]
 
   @@map("utilisateurs")
 }
 
 model TokenVerification {
-  id             String    @id @default(uuid())
-  utilisateurId  String
-  token          String    @unique
-  type           TokenType
-  expiration     DateTime
-  dateCreation   DateTime  @default(now())
+  id            String    @id @default(uuid())
+  utilisateurId String
+  token         String    @unique
+  type          TokenType
+  expiration    DateTime
+  dateCreation  DateTime  @default(now())
 
-  utilisateur    Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
 
   @@map("tokens_verification")
 }
@@ -49,33 +50,34 @@ enum TokenType {
 }
 
 model Workspace {
-  id             String    @id @default(uuid())
+  id             String   @id @default(uuid())
   nom            String
   proprietaireId String
   description    String?
   logoUrl        String?
-  dateCreation   DateTime  @default(now())
-  dateMiseAJour  DateTime  @updatedAt
+  dateCreation   DateTime @default(now())
+  dateMiseAJour  DateTime @updatedAt
 
-  membres        MembreWorkspace[]
-  invitations    Invitation[]
-  dossiers       Dossier[]
-  documents      Document[]
-  activites      Activite[]
-  notifications  Notification[]
+  membres       MembreWorkspace[]
+  invitations   Invitation[]
+  dossiers      Dossier[]
+  documents     Document[]
+  activites     Activite[]
+  notifications Notification[]
+  conversations Conversation[]
 
   @@map("workspaces")
 }
 
 model MembreWorkspace {
-  id             String   @id @default(uuid())
-  utilisateurId  String
-  workspaceId    String
-  role           Role
-  dateAdhesion   DateTime @default(now())
+  id            String   @id @default(uuid())
+  utilisateurId String
+  workspaceId   String
+  role          Role
+  dateAdhesion  DateTime @default(now())
 
-  utilisateur    Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
-  workspace      Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([utilisateurId, workspaceId])
   @@map("membres_workspace")
@@ -89,80 +91,135 @@ enum Role {
 }
 
 model Invitation {
-  id           String    @id @default(uuid())
+  id           String   @id @default(uuid())
   email        String
   workspaceId  String
-  token        String    @unique
-  role         Role      @default(LECTEUR)
+  token        String   @unique
+  role         Role     @default(LECTEUR)
   expiration   DateTime
-  dateCreation DateTime  @default(now())
+  dateCreation DateTime @default(now())
 
-  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@map("invitations")
 }
 
 model Dossier {
-  id           String    @id @default(uuid())
+  id           String   @id @default(uuid())
   nom          String
   workspaceId  String
   parentId     String?
   createdById  String?
-  dateCreation DateTime  @default(now())
+  dateCreation DateTime @default(now())
 
-  workspace    Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  parent       Dossier?   @relation("DossierEnfants", fields: [parentId], references: [id], onDelete: Cascade)
-  enfants      Dossier[]  @relation("DossierEnfants")
-  documents    Document[]
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  parent    Dossier?   @relation("DossierEnfants", fields: [parentId], references: [id], onDelete: Cascade)
+  enfants   Dossier[]  @relation("DossierEnfants")
+  documents Document[]
 
   @@map("dossiers")
 }
 
 model Document {
-  id           String    @id @default(uuid())
-  titre        String    @default("Sans titre")
-  contenu      Json?
-  workspaceId  String
-  dossierId    String?
-  authorId     String
-  estFavori    Boolean   @default(false)
-  estArchive   Boolean   @default(false)
-  dateCreation DateTime  @default(now())
+  id            String   @id @default(uuid())
+  titre         String   @default("Sans titre")
+  contenu       Json?
+  workspaceId   String
+  dossierId     String?
+  authorId      String
+  estFavori     Boolean  @default(false)
+  estArchive    Boolean  @default(false)
+  dateCreation  DateTime @default(now())
   dateMiseAJour DateTime @updatedAt
+  estIndexe     Boolean  @default(false)
 
-  workspace    Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  dossier      Dossier?        @relation(fields: [dossierId], references: [id], onDelete: SetNull)
-  author       Utilisateur     @relation(fields: [authorId], references: [id])
-  versions     VersionDocument[]
+  chunks        DocumentChunk[]
+  conversations Conversation[]
+  workspace     Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  dossier       Dossier?          @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  author        Utilisateur       @relation(fields: [authorId], references: [id])
+  versions      VersionDocument[]
 
   @@map("documents")
 }
 
 model VersionDocument {
-  id           String    @id @default(uuid())
+  id           String   @id @default(uuid())
   documentId   String
   contenu      Json
   numero       Int
   createdById  String
-  dateCreation DateTime  @default(now())
+  dateCreation DateTime @default(now())
 
-  document     Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  createdBy    Utilisateur @relation(fields: [createdById], references: [id])
+  document  Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdBy Utilisateur @relation(fields: [createdById], references: [id])
 
   @@map("versions_document")
 }
 
+model DocumentChunk {
+  id           String                     @id @default(uuid())
+  documentId   String
+  contenu      String
+  embedding    Unsupported("vector(3072)")
+  chunkIndex   Int
+  dateCreation DateTime                   @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@map("document_chunks")
+}
+
+// ── AI Conversations ──────────────────────────────────────────────────────────
+
+model Conversation {
+  id            String   @id @default(uuid())
+  utilisateurId String
+  workspaceId   String
+  documentId    String?  // null = workspace-wide, set = document-scoped
+  titre         String   @default("New conversation")
+  dateCreation  DateTime @default(now())
+  dateMiseAJour DateTime @updatedAt
+
+  utilisateur Utilisateur  @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  document    Document?    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  messages    MessageIA[]
+
+  @@map("conversations")
+}
+
+model MessageIA {
+  id             String   @id @default(uuid())
+  conversationId String
+  role           RoleIA
+  contenu        String
+  sources        Json?    // [{documentId, titre, excerpt}] — only on assistant messages
+  dateCreation   DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("messages_ia")
+}
+
+enum RoleIA {
+  UTILISATEUR
+  ASSISTANT
+}
+
+// ── Activity & Notifications ──────────────────────────────────────────────────
+
 model Activite {
-  id           String       @id @default(uuid())
+  id           String     @id @default(uuid())
   workspaceId  String
   userId       String
   action       ActionType
   cible        String
   cibleId      String?
-  dateCreation DateTime     @default(now())
+  dateCreation DateTime   @default(now())
 
-  workspace    Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user         Utilisateur @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      Utilisateur @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("activites")
 }
@@ -189,8 +246,8 @@ model Notification {
   lien         String?
   dateCreation DateTime         @default(now())
 
-  user         Utilisateur @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace    Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      Utilisateur @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
 }

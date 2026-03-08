@@ -240,7 +240,8 @@
       "currentWorkspace": "Current Workspace",
       "workspaces": "Workspaces",
       "welcomeBack": "Welcome back",
-      "activity": "Here's an overview of your workspace activity."
+      "activity": "Here's an overview of your workspace activity.",
+      "aiAssistant": "AI Assistant"
     },
     "workspace": {
       "overviewNav": "Overview",
@@ -359,6 +360,9 @@
       "folders": "Folders",
       "newFolder": "New folder",
       "allDocuments": "All Documents",
+      "documentsCount": "documents",
+      "newSubfolder": "New subfolder",
+      "moveToRoot": "Move to root",
       "noFoldersYet": "No folders yet",
       "breadcrumb": "Documents",
       "newDocument": "New Document",
@@ -368,6 +372,20 @@
       "createFirstDesc": "Create your first document to start capturing your team's knowledge.",
       "readOnlyDesc": "No documents have been created in this workspace yet.",
       "createDoc": "New Document",
+      "explorer": "Explorer",
+      "unfiled": "Unfiled",
+      "emptyFolder": "Empty folder",
+      "willBeDeleted": "will be permanently deleted.",
+      "upload": "Upload file",
+      "uploading": "Uploading...",
+      "uploadSuccess": "{name} imported successfully",
+      "uploadError": "Upload failed. Please try again.",
+      "uploadSizeError": "File too large. Maximum size is 20MB.",
+      "uploadTypeError": "Only PDF, Word (.docx) and Excel (.xlsx) files are supported.",
+      "download": "Download",
+      "downloadAs": "Download as",
+      "exportSuccess": "File downloaded successfully.",
+      "exportError": "Download failed. Please try again.",
       "createDocModal": {
         "title": "New Document",
         "desc": "Give your document a title to get started.",
@@ -376,9 +394,10 @@
         "submit": "Create"
       },
       "createFolderModal": {
-        "title": "New Folder",
-        "desc": "Organize your documents with folders.",
-        "placeholder": "Folder name...",
+        "title": "New folder",
+        "desc": "Create a folder to organize your documents.",
+        "descSub": "Create a subfolder inside the selected folder.",
+        "placeholder": "Folder name",
         "cancel": "Cancel",
         "submit": "Create"
       },
@@ -400,10 +419,11 @@
         "submit": "Delete"
       },
       "tooltips": {
-        "star": "Star",
-        "unstar": "Unstar",
+        "star": "Add to starred",
+        "unstar": "Remove from starred",
         "delete": "Delete",
-        "rename": "Rename"
+        "rename": "Rename",
+        "move": "Move to..."
       }
     },
     "editor": {
@@ -415,6 +435,9 @@
       "versionHistory": "Version history",
       "save": "Save",
       "saving": "Saving...",
+      "edit": "Edit",
+      "doneEditing": "Done",
+      "readOnly": "You have read-only access",
       "placeholder": "Start writing your document...",
       "untitled": "Untitled",
       "unsavedWarning": "You have unsaved changes. Leave anyway?",
@@ -426,12 +449,67 @@
         "noVersions": "No versions yet",
         "noVersionsDesc": "Versions are created each time you click Save."
       },
+      "export": "Download",
+      "exportPdf": "Download as PDF",
+      "exportDocx": "Download as Word",
+      "exportExcel": "Download as Excel",
       "restoreModal": {
         "title": "Restore this version?",
         "desc": "will become the current content. Your current version will be saved automatically before restoring.",
         "cancel": "Cancel",
         "submit": "Restore"
-      }
+      },
+      "table": {
+        "label": "Table",
+        "insert": "Insert table",
+        "columns": "Columns",
+        "addColBefore": "Add column before",
+        "addColAfter": "Add column after",
+        "deleteCol": "Delete column",
+        "rows": "Rows",
+        "addRowBefore": "Add row before",
+        "addRowAfter": "Add row after",
+        "deleteRow": "Delete row",
+        "delete": "Delete table"
+      },
+      "askAi": "Ask AI",
+      "openAi": "Open AI Assistant",
+      "closeAi": "Close AI Assistant"
+    },
+    "ai": {
+      "title": "AI Assistant",
+      "workspaceMode": "Searching all workspace documents",
+      "summarize": "Summarize",
+      "clearChat": "Clear chat",
+      "emptyTitle": "Ask anything about your documents",
+      "emptyDescDocument": "Ask questions about this document and get precise answers powered by AI.",
+      "emptyDescWorkspace": "Ask questions across all workspace documents and get sourced answers.",
+      "suggest1Doc": "What are the main topics in this document?",
+      "suggest2Doc": "Summarize the key points for me.",
+      "suggest3Doc": "What actions or next steps are mentioned?",
+      "suggest1Ws": "What are the main topics across our documents?",
+      "suggest2Ws": "What processes or workflows are documented?",
+      "suggest3Ws": "What guidelines or rules are mentioned in our docs?",
+      "summaryTitle": "Document Summary",
+      "summaryGenerating": "Generating summary...",
+      "summaryError": "Failed to generate summary. Please try again.",
+      "sources": "Sources",
+      "errorResponse": "Something went wrong. Please try again.",
+      "inputPlaceholderDocument": "Ask about this document... (Enter to send)",
+      "inputPlaceholderWorkspace": "Ask anything across all documents... (Enter to send)",
+      "disclaimer": "AI answers are based solely on your workspace documents.",
+      "pageTitle": "AI Assistant",
+      "pageSub": "Ask questions across all documents",
+      "pageEmptyTitle": "Ask anything about your workspace",
+      "pageEmptyDesc": "The AI assistant searches through all indexed documents in this workspace to give you precise, sourced answers.",
+      "history": "History",
+      "historyTitle": "Conversation history",
+      "historyEmpty": "No conversations yet",
+      "historyEmptyDesc": "Start a new chat and your conversations will appear here.",
+      "newChat": "New chat",
+      "messages": "messages",
+      "deleteConversation": "Delete conversation",
+      "conversationDeleted": "Conversation deleted"
     }
   },
   "profile": {

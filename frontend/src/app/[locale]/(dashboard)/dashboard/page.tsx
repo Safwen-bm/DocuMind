@@ -1,105 +1,130 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter, useParams } from "next/navigation"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useTranslations, useLocale } from "next-intl"
-import { useAuthStore } from "@/store/auth.store"
-import { workspaceApi } from "@/lib/workspace.api"
-import { documentApi } from "@/lib/document.api"
-import { activiteApi } from "@/lib/activite.api"
-import { Workspace, Document, Activite, DocumentStats } from "@/lib/types"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { useTranslations, useLocale } from "next-intl";
+import { useAuthStore } from "@/store/auth.store";
+import { workspaceApi } from "@/lib/workspace.api";
+import { documentApi } from "@/lib/document.api";
+import { activiteApi } from "@/lib/activite.api";
+import { Workspace, Document, Activite, DocumentStats } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  Dialog, DialogContent, DialogHeader,
-  DialogTitle, DialogDescription,
-} from "@/components/ui/dialog"
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
-  Plus, FolderOpen, Users, ArrowRight, Loader2,
-  FileText, Star, Activity, Clock, TrendingUp,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
-import { formatDistanceToNow } from "date-fns"
-import { fr, ar, enUS } from "date-fns/locale"
+  Plus,
+  FolderOpen,
+  Users,
+  ArrowRight,
+  Loader2,
+  FileText,
+  Star,
+  Activity,
+  Clock,
+  TrendingUp,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { formatDistanceToNow } from "date-fns";
+import { fr, ar, enUS } from "date-fns/locale";
 
 const roleColors: Record<string, string> = {
   PROPRIETAIRE: "bg-primary/10 text-primary",
   ADMINISTRATEUR: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
   EDITEUR: "bg-green-500/10 text-green-600 dark:text-green-400",
   LECTEUR: "bg-muted text-muted-foreground",
-}
+};
 
 export default function DashboardPage() {
-  const params = useParams()
-  const locale = params.locale as string
-  const router = useRouter()
-  const queryClient = useQueryClient()
-  const { user } = useAuthStore()
-  const currentLocale = useLocale()
-  const t = useTranslations("dashboard.home")
-  const tRoles = useTranslations("dashboard.workspace.roles")
+  const params = useParams();
+  const locale = params.locale as string;
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { user, justLoggedIn, setJustLoggedIn } = useAuthStore();
 
-  const dateFnsLocale = currentLocale === "fr" ? fr : currentLocale === "ar" ? ar : enUS
+  useEffect(() => {
+    if (justLoggedIn) {
+      setJustLoggedIn(false);
+      toast.success(t("welcomeBack", { name: user?.nom?.split(" ")[0] ?? "" }));
+    }
+  }, []);
 
-  const [createOpen, setCreateOpen] = useState(false)
-  const [nom, setNom] = useState("")
-  const [description, setDescription] = useState("")
-  const [error, setError] = useState("")
+  const currentLocale = useLocale();
+  const t = useTranslations("dashboard.home");
+  const tRoles = useTranslations("dashboard.workspace.roles");
+
+  const dateFnsLocale =
+    currentLocale === "fr" ? fr : currentLocale === "ar" ? ar : enUS;
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [nom, setNom] = useState("");
+  const [description, setDescription] = useState("");
+  const [error, setError] = useState("");
 
   const { data: workspaces, isLoading: wsLoading } = useQuery<Workspace[]>({
     queryKey: ["workspaces"],
     queryFn: workspaceApi.getAll,
-  })
+  });
 
   const { data: stats } = useQuery<DocumentStats>({
     queryKey: ["doc-stats"],
     queryFn: documentApi.getStats,
-  })
+  });
 
   const { data: recentDocs } = useQuery<Document[]>({
     queryKey: ["recent-docs"],
     queryFn: documentApi.getRecent,
-  })
+  });
 
   const { data: favoriDocs } = useQuery<Document[]>({
     queryKey: ["favori-docs"],
     queryFn: documentApi.getFavoris,
-  })
+  });
 
-  const firstWorkspaceId = workspaces?.[0]?.id
+  const firstWorkspaceId = workspaces?.[0]?.id;
   const { data: activity } = useQuery<Activite[]>({
     queryKey: ["activity", firstWorkspaceId],
     queryFn: () => activiteApi.getByWorkspace(firstWorkspaceId!),
     enabled: !!firstWorkspaceId,
-  })
+  });
 
   const createMutation = useMutation({
     mutationFn: workspaceApi.create,
     onSuccess: (workspace) => {
-      queryClient.invalidateQueries({ queryKey: ["workspaces"] })
-      setCreateOpen(false)
-      setNom("")
-      setDescription("")
-      router.push(`/${locale}/workspace/${workspace.id}`)
+      queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+      setCreateOpen(false);
+      setNom("");
+      setDescription("");
+      router.push(`/${locale}/workspace/${workspace.id}`);
     },
     onError: (err: any) => {
-      setError(err.response?.data?.message || "Something went wrong.")
+      setError(err.response?.data?.message || "Something went wrong.");
     },
-  })
+  });
 
   function handleCreate(e: React.FormEvent) {
-    e.preventDefault()
-    if (!nom.trim()) return
-    setError("")
-    createMutation.mutate({ nom: nom.trim(), description: description.trim() || undefined })
+    e.preventDefault();
+    if (!nom.trim()) return;
+    setError("");
+    createMutation.mutate({
+      nom: nom.trim(),
+      description: description.trim() || undefined,
+    });
   }
 
-  const totalMembers = workspaces?.reduce((acc, ws) => acc + ws._count.membres, 0) ?? 0
-  const firstName = user?.nom?.split(" ")[0] ?? ""
+  const totalMembers =
+    workspaces?.reduce((acc, ws) => acc + ws._count.membres, 0) ?? 0;
+  const firstName = user?.nom?.split(" ")[0] ?? "";
 
   const statCards = [
     {
@@ -130,11 +155,10 @@ export default function DashboardPage() {
       color: "text-yellow-500 bg-yellow-500/10",
       loading: !stats,
     },
-  ]
+  ];
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
-
       {/* Welcome */}
       <div className="flex items-start justify-between">
         <div>
@@ -145,7 +169,10 @@ export default function DashboardPage() {
             {t("activitySubtitle")}
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)} className="gap-2 hidden sm:flex">
+        <Button
+          onClick={() => setCreateOpen(true)}
+          className="gap-2 hidden sm:flex"
+        >
           <Plus className="h-4 w-4" />
           {t("newWorkspace")}
         </Button>
@@ -154,8 +181,16 @@ export default function DashboardPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {statCards.map((stat) => (
-          <div key={stat.label} className="rounded-xl border border-border bg-card p-5">
-            <div className={cn("mb-3 flex h-10 w-10 items-center justify-center rounded-lg", stat.color)}>
+          <div
+            key={stat.label}
+            className="rounded-xl border border-border bg-card p-5"
+          >
+            <div
+              className={cn(
+                "mb-3 flex h-10 w-10 items-center justify-center rounded-lg",
+                stat.color,
+              )}
+            >
               <stat.icon className="h-5 w-5" />
             </div>
             {stat.loading ? (
@@ -170,7 +205,6 @@ export default function DashboardPage() {
 
       {/* Main grid */}
       <div className="grid gap-6 lg:grid-cols-2">
-
         {/* Starred */}
         <div className="rounded-xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
@@ -193,23 +227,37 @@ export default function DashboardPage() {
             ) : favoriDocs.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
                 <Star className="h-8 w-8 text-muted-foreground/30 mb-2" />
-                <p className="text-sm text-muted-foreground">{t("noStarred")}</p>
-                <p className="text-xs text-muted-foreground mt-1">{t("noStarredDesc")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("noStarred")}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t("noStarredDesc")}
+                </p>
               </div>
             ) : (
               favoriDocs.map((doc) => (
                 <div
                   key={doc.id}
-                  onClick={() => router.push(`/${locale}/workspace/${doc.workspaceId}/documents/${doc.id}`)}
+                  onClick={() =>
+                    router.push(
+                      `/${locale}/workspace/${doc.workspaceId}/documents/${doc.id}`,
+                    )
+                  }
                   className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors cursor-pointer"
                 >
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-yellow-500/10">
                     <FileText className="h-4 w-4 text-yellow-600" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">{doc.titre}</p>
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {doc.titre}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      {doc.workspace?.nom} · {formatDistanceToNow(new Date(doc.dateMiseAJour), { addSuffix: true, locale: dateFnsLocale })}
+                      {doc.workspace?.nom} ·{" "}
+                      {formatDistanceToNow(new Date(doc.dateMiseAJour), {
+                        addSuffix: true,
+                        locale: dateFnsLocale,
+                      })}
                     </p>
                   </div>
                   <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -223,7 +271,9 @@ export default function DashboardPage() {
         <div className="rounded-xl border border-border bg-card">
           <div className="flex items-center gap-2 border-b border-border px-5 py-4">
             <Activity className="h-4 w-4 text-primary" />
-            <h3 className="font-semibold text-foreground">{t("recentActivity")}</h3>
+            <h3 className="font-semibold text-foreground">
+              {t("recentActivity")}
+            </h3>
           </div>
           <div className="divide-y divide-border">
             {!activity ? (
@@ -239,18 +289,32 @@ export default function DashboardPage() {
             ) : activity.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
                 <TrendingUp className="h-8 w-8 text-muted-foreground/30 mb-2" />
-                <p className="text-sm text-muted-foreground">{t("noActivity")}</p>
-                <p className="text-xs text-muted-foreground mt-1">{t("noActivityDesc")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("noActivity")}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t("noActivityDesc")}
+                </p>
               </div>
             ) : (
               activity.slice(0, 6).map((item) => {
                 const initials = item.user.nom
-                  .split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
+                  .split(" ")
+                  .map((n: string) => n[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2);
                 return (
-                  <div key={item.id} className="flex items-start gap-3 px-5 py-3">
+                  <div
+                    key={item.id}
+                    className="flex items-start gap-3 px-5 py-3"
+                  >
                     <Avatar className="h-8 w-8 shrink-0 mt-0.5">
                       {item.user.avatarUrl && (
-                        <AvatarImage src={item.user.avatarUrl} alt={item.user.nom} />
+                        <AvatarImage
+                          src={item.user.avatarUrl}
+                          alt={item.user.nom}
+                        />
                       )}
                       <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
                         {initials}
@@ -258,21 +322,24 @@ export default function DashboardPage() {
                     </Avatar>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-foreground">
-                        <span className="font-medium">{item.user.nom}</span>
-                        {" "}
+                        <span className="font-medium">{item.user.nom}</span>{" "}
                         <span className="text-muted-foreground">
-                          {t(`actions.${item.action}`, { defaultValue: item.action })}
-                        </span>
-                        {" "}
+                          {t(`actions.${item.action}`, {
+                            defaultValue: item.action,
+                          })}
+                        </span>{" "}
                         <span className="font-medium">{item.cible}</span>
                       </p>
                       <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                         <Clock className="h-3 w-3" />
-                        {formatDistanceToNow(new Date(item.dateCreation), { addSuffix: true, locale: dateFnsLocale })}
+                        {formatDistanceToNow(new Date(item.dateCreation), {
+                          addSuffix: true,
+                          locale: dateFnsLocale,
+                        })}
                       </p>
                     </div>
                   </div>
-                )
+                );
               })
             )}
           </div>
@@ -290,7 +357,11 @@ export default function DashboardPage() {
             {recentDocs.map((doc) => (
               <button
                 key={doc.id}
-                onClick={() => router.push(`/${locale}/workspace/${doc.workspaceId}/documents/${doc.id}`)}
+                onClick={() =>
+                  router.push(
+                    `/${locale}/workspace/${doc.workspaceId}/documents/${doc.id}`,
+                  )
+                }
                 className="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/30 hover:shadow-md hover:shadow-primary/5"
               >
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10">
@@ -301,10 +372,16 @@ export default function DashboardPage() {
                     {doc.titre}
                   </p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {doc.workspace?.nom} · {formatDistanceToNow(new Date(doc.dateMiseAJour), { addSuffix: true, locale: dateFnsLocale })}
+                    {doc.workspace?.nom} ·{" "}
+                    {formatDistanceToNow(new Date(doc.dateMiseAJour), {
+                      addSuffix: true,
+                      locale: dateFnsLocale,
+                    })}
                   </p>
                 </div>
-                {doc.estFavori && <Star className="h-3.5 w-3.5 shrink-0 text-yellow-500 fill-yellow-500" />}
+                {doc.estFavori && (
+                  <Star className="h-3.5 w-3.5 shrink-0 text-yellow-500 fill-yellow-500" />
+                )}
               </button>
             ))}
           </div>
@@ -315,7 +392,12 @@ export default function DashboardPage() {
       <div>
         <div className="mb-4 flex items-center justify-between">
           <h3 className="font-semibold text-foreground">{t("myWorkspaces")}</h3>
-          <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} className="gap-1.5 text-xs">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCreateOpen(true)}
+            className="gap-1.5 text-xs"
+          >
             <Plus className="h-3.5 w-3.5" />
             {t("new")}
           </Button>
@@ -343,14 +425,21 @@ export default function DashboardPage() {
                     <p className="truncate font-semibold text-foreground group-hover:text-primary transition-colors text-sm">
                       {ws.nom}
                     </p>
-                    <span className={cn("text-xs font-medium px-1.5 py-0.5 rounded-md", roleColors[ws.monRole])}>
+                    <span
+                      className={cn(
+                        "text-xs font-medium px-1.5 py-0.5 rounded-md",
+                        roleColors[ws.monRole],
+                      )}
+                    >
                       {tRoles(ws.monRole)}
                     </span>
                   </div>
                   <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                 </div>
                 {ws.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-1 mb-3">{ws.description}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-1 mb-3">
+                    {ws.description}
+                  </p>
                 )}
                 <div className="flex items-center gap-1 text-xs text-muted-foreground mt-auto">
                   <Users className="h-3.5 w-3.5" />
@@ -364,11 +453,17 @@ export default function DashboardPage() {
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 mb-3">
               <FolderOpen className="h-6 w-6 text-primary" />
             </div>
-            <h3 className="font-semibold text-foreground">{t("noWorkspaces")}</h3>
+            <h3 className="font-semibold text-foreground">
+              {t("noWorkspaces")}
+            </h3>
             <p className="mt-1 max-w-xs text-sm text-muted-foreground">
               {t("noWorkspacesDesc")}
             </p>
-            <Button onClick={() => setCreateOpen(true)} className="mt-5 gap-2" size="sm">
+            <Button
+              onClick={() => setCreateOpen(true)}
+              className="mt-5 gap-2"
+              size="sm"
+            >
               <Plus className="h-4 w-4" />
               {t("newWorkspace")}
             </Button>
@@ -406,11 +501,17 @@ export default function DashboardPage() {
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCreateOpen(false)}
+              >
                 {t("modal.cancel")}
               </Button>
               <Button type="submit" disabled={createMutation.isPending}>
-                {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {createMutation.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 {t("modal.submit")}
               </Button>
             </div>
@@ -418,5 +519,5 @@ export default function DashboardPage() {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

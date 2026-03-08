@@ -1,3 +1,5 @@
+// src/app/[locale]/(dashboard)/workspace/[workspaceId]/documents/[docId]/page.tsx
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -13,7 +15,8 @@ import { Color } from "@tiptap/extension-color";
 import Placeholder from "@tiptap/extension-placeholder";
 import Image from "@tiptap/extension-image";
 import { documentApi } from "@/lib/document.api";
-import { Document, VersionDocument } from "@/lib/types";
+import { workspaceApi } from "@/lib/workspace.api";
+import { Document, Workspace } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -22,201 +25,33 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Bold,
-  Italic,
-  UnderlineIcon,
-  Strikethrough,
-  Code,
-  Heading1,
-  Heading2,
-  Heading3,
-  List,
-  ListOrdered,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  Highlighter,
-  Undo,
-  Redo,
   Star,
   History,
   Loader2,
   ChevronLeft,
-  RotateCcw,
-  Minus,
-  Quote,
-  Palette,
   Save,
-  ImageIcon,
+  Pencil,
+  Eye,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDistanceToNow, format } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
+import { EditorToolbar } from "./_components/EditorToolbar";
+import { VersionHistory } from "./_components/VersionHistory";
+import { AiChatPanel } from "./_components/AiChatPanel";
+import { Table } from "@tiptap/extension-table";
+import TableRow from "@tiptap/extension-table-row";
+import TableCell from "@tiptap/extension-table-cell";
+import TableHeader from "@tiptap/extension-table-header";
+import { Download, FileText, FileDown, FileSpreadsheet } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-// ─── Colors ──────────────────────────────────────────────────────────────────
-const TEXT_COLORS = [
-  { label: "Default", value: "" },
-  { label: "Red", value: "#ef4444" },
-  { label: "Orange", value: "#f97316" },
-  { label: "Amber", value: "#f59e0b" },
-  { label: "Green", value: "#22c55e" },
-  { label: "Teal", value: "#14b8a6" },
-  { label: "Blue", value: "#3b82f6" },
-  { label: "Indigo", value: "#6366f1" },
-  { label: "Purple", value: "#a855f7" },
-  { label: "Pink", value: "#ec4899" },
-  { label: "Gray", value: "#6b7280" },
-  { label: "Black", value: "#000000" },
-];
-
-const HIGHLIGHT_COLORS = [
-  { label: "None", value: "" },
-  { label: "Yellow", value: "#fef08a" },
-  { label: "Green", value: "#bbf7d0" },
-  { label: "Blue", value: "#bfdbfe" },
-  { label: "Pink", value: "#fbcfe8" },
-  { label: "Purple", value: "#e9d5ff" },
-  { label: "Orange", value: "#fed7aa" },
-  { label: "Red", value: "#fecaca" },
-];
-
-// ─── Toolbar Button ───────────────────────────────────────────────────────────
-function ToolbarBtn({
-  onClick,
-  active = false,
-  disabled = false,
-  tooltip,
-  children,
-}: {
-  onClick: () => void;
-  active?: boolean;
-  disabled?: boolean;
-  tooltip: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          onMouseDown={(e) => {
-            e.preventDefault();
-            onClick();
-          }}
-          disabled={disabled}
-          className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-md text-sm transition-colors",
-            active
-              ? "bg-primary/15 text-primary"
-              : "text-muted-foreground hover:bg-accent hover:text-foreground",
-            disabled && "opacity-40 cursor-not-allowed",
-          )}
-        >
-          {children}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" className="text-xs">
-        {tooltip}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-function Divider() {
-  return <div className="mx-1 h-5 w-px bg-border" />;
-}
-
-// ─── Color Picker ─────────────────────────────────────────────────────────────
-function ColorPicker({
-  colors,
-  value,
-  onChange,
-  tooltip,
-  icon: Icon,
-}: {
-  colors: { label: string; value: string }[];
-  value: string;
-  onChange: (val: string) => void;
-  tooltip: string;
-  icon: React.ElementType;
-}) {
-  return (
-    <Popover>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <PopoverTrigger asChild>
-            <button
-              onMouseDown={(e) => e.preventDefault()}
-              className="flex h-8 w-8 flex-col items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground relative"
-            >
-              <Icon className="h-3.5 w-3.5" />
-              <div
-                className="absolute bottom-1 left-1.5 right-1.5 h-[3px] rounded-full"
-                style={{
-                  backgroundColor: value || "transparent",
-                  border: value ? "none" : "1px dashed #ccc",
-                }}
-              />
-            </button>
-          </PopoverTrigger>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="text-xs">
-          {tooltip}
-        </TooltipContent>
-      </Tooltip>
-      <PopoverContent side="bottom" className="w-48 p-3" align="start">
-        <p className="text-xs font-semibold text-muted-foreground mb-2">
-          {tooltip}
-        </p>
-        <div className="grid grid-cols-6 gap-1.5">
-          {colors.map((c) => (
-            <Tooltip key={c.value}>
-              <TooltipTrigger asChild>
-                <button
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    onChange(c.value);
-                  }}
-                  className={cn(
-                    "h-6 w-6 rounded-md border-2 transition-transform hover:scale-110",
-                    value === c.value
-                      ? "border-primary ring-1 ring-primary"
-                      : "border-transparent",
-                  )}
-                  style={{
-                    backgroundColor: c.value || "transparent",
-                    border: !c.value ? "2px dashed #ccc" : undefined,
-                  }}
-                />
-              </TooltipTrigger>
-              <TooltipContent className="text-xs">{c.label}</TooltipContent>
-            </Tooltip>
-          ))}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-// ─── Main Editor Page ─────────────────────────────────────────────────────────
 export default function DocumentEditorPage() {
   const params = useParams();
   const locale = params.locale as string;
@@ -224,26 +59,30 @@ export default function DocumentEditorPage() {
   const docId = params.docId as string;
   const router = useRouter();
   const queryClient = useQueryClient();
+  const t = useTranslations("dashboard.editor");
 
+  // ── Export state ───────────────────────────────────────────────────────────
+  const [isExporting, setIsExporting] = useState<"pdf" | "docx" | "excel" | null>(null);
+
+  // ── Mode ───────────────────────────────────────────────────────────────────
+  const [isEditing, setIsEditing] = useState(false);
+
+  // ── AI Panel ───────────────────────────────────────────────────────────────
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+
+  // ── State ──────────────────────────────────────────────────────────────────
   const [title, setTitle] = useState("");
+  const [isFavori, setIsFavori] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [restoreVersion, setRestoreVersion] = useState<VersionDocument | null>(
-    null,
-  );
-  const [isFavori, setIsFavori] = useState(false);
-  const [imageUploading, setImageUploading] = useState(false);
-  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const currentContentRef = useRef<any>(null);
+  const isLoadedRef = useRef(false);
   const titleSaveTimer = useRef<NodeJS.Timeout | null>(null);
   const autoSyncTimer = useRef<NodeJS.Timeout | null>(null);
 
-  const t = useTranslations("dashboard.editor");
-
-  // Track current content for auto-sync (no version)
-  const currentContentRef = useRef<any>(null);
-  const isLoadedRef = useRef(false);
-
+  // ── Queries ────────────────────────────────────────────────────────────────
   const { data: doc, isLoading } = useQuery<Document>({
     queryKey: ["document", docId],
     queryFn: () => documentApi.getOne(docId),
@@ -251,24 +90,23 @@ export default function DocumentEditorPage() {
     refetchOnMount: "always",
   });
 
-  const { data: versions } = useQuery<VersionDocument[]>({
-    queryKey: ["versions", docId],
-    queryFn: () => documentApi.getVersions(docId),
-    enabled: historyOpen,
+  const { data: workspace } = useQuery<Workspace>({
+    queryKey: ["workspace", workspaceId],
+    queryFn: () => workspaceApi.getOne(workspaceId),
   });
 
-  // Silent auto-sync — updates content in DB but does NOT create a version
+  const canEdit = workspace
+    ? ["EDITEUR", "ADMINISTRATEUR", "PROPRIETAIRE"].includes(workspace.monRole)
+    : false;
+
+  // ── Mutations ──────────────────────────────────────────────────────────────
   const silentSyncMutation = useMutation({
     mutationFn: (contenu: any) => documentApi.updateSilent(docId, { contenu }),
   });
 
-  // Manual save — creates a version
   const saveMutation = useMutation({
-    mutationFn: (data: {
-      titre?: string;
-      contenu?: any;
-      estFavori?: boolean;
-    }) => documentApi.update(docId, data),
+    mutationFn: (data: { titre?: string; contenu?: any; estFavori?: boolean }) =>
+      documentApi.update(docId, data),
     onSuccess: () => {
       setHasUnsavedChanges(false);
       setLastSaved(new Date());
@@ -279,53 +117,10 @@ export default function DocumentEditorPage() {
     },
   });
 
-  const restoreMutation = useMutation({
-    mutationFn: (versionId: string) =>
-      documentApi.restoreVersion(docId, versionId),
-    onSuccess: (restored) => {
-      editor?.commands.setContent(
-        restored.contenu || { type: "doc", content: [] },
-      );
-      currentContentRef.current = restored.contenu;
-      queryClient.invalidateQueries({ queryKey: ["versions", docId] });
-      setRestoreVersion(null);
-      setHistoryOpen(false);
-      setHasUnsavedChanges(false);
-      setLastSaved(new Date());
-    },
-  });
-
-  // Warn before leaving with unsaved changes
-  useEffect(() => {
-    function onBeforeUnload(e: BeforeUnloadEvent) {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    }
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [hasUnsavedChanges]);
-
-  // Auto-sync every 10s silently (no version, no notification)
-  const startAutoSync = useCallback(() => {
-    if (autoSyncTimer.current) clearInterval(autoSyncTimer.current);
-    autoSyncTimer.current = setInterval(() => {
-      if (currentContentRef.current && hasUnsavedChanges) {
-        silentSyncMutation.mutate(currentContentRef.current);
-      }
-    }, 10000);
-  }, [hasUnsavedChanges]);
-
-  useEffect(() => {
-    startAutoSync();
-    return () => {
-      if (autoSyncTimer.current) clearInterval(autoSyncTimer.current);
-    };
-  }, [startAutoSync]);
-
+  // ── TipTap editor ──────────────────────────────────────────────────────────
   const editor = useEditor({
     immediatelyRender: false,
+    editable: false,
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
@@ -343,7 +138,14 @@ export default function DocumentEditorPage() {
       Image.configure({
         HTMLAttributes: { class: "rounded-lg max-w-full my-4" },
       }),
-      Placeholder.configure({ placeholder : t("placeholder")}),
+      Table.configure({
+        resizable: true,
+        HTMLAttributes: { class: "border-collapse table-auto w-full" },
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      Placeholder.configure({ placeholder: t("placeholder") }),
     ],
     editorProps: {
       attributes: {
@@ -353,34 +155,16 @@ export default function DocumentEditorPage() {
     },
     onUpdate: ({ editor }) => {
       currentContentRef.current = editor.getJSON();
-      if (isLoadedRef.current) {
-        setHasUnsavedChanges(true);
-      }
+      if (isLoadedRef.current) setHasUnsavedChanges(true);
     },
   });
 
-  // Manual save handler — Ctrl+S support
-  const handleManualSave = useCallback(() => {
-    if (!editor || !currentContentRef.current) return;
-    saveMutation.mutate({
-      titre: title,
-      contenu: currentContentRef.current,
-    });
-  }, [editor, title, saveMutation]);
-
-  // Keyboard shortcut Ctrl+S
   useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-        e.preventDefault();
-        handleManualSave();
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [handleManualSave]);
+    if (!editor) return;
+    editor.setEditable(isEditing);
+    if (isEditing) setTimeout(() => editor.commands.focus("end"), 50);
+  }, [isEditing, editor]);
 
-  // Load document
   useEffect(() => {
     if (doc && editor && !isLoadedRef.current) {
       setTitle(doc.titre);
@@ -390,14 +174,45 @@ export default function DocumentEditorPage() {
         editor.commands.setContent(doc.contenu);
         currentContentRef.current = doc.contenu;
       }
-      // Small delay to avoid marking initial load as unsaved
-      setTimeout(() => {
-        isLoadedRef.current = true;
-      }, 200);
+      setTimeout(() => { isLoadedRef.current = true; }, 200);
     }
   }, [doc, editor]);
 
-  // Title auto-save (title changes still save immediately, no version)
+  useEffect(() => {
+    if (autoSyncTimer.current) clearInterval(autoSyncTimer.current);
+    autoSyncTimer.current = setInterval(() => {
+      if (currentContentRef.current && hasUnsavedChanges && isEditing) {
+        silentSyncMutation.mutate(currentContentRef.current);
+      }
+    }, 10000);
+    return () => { if (autoSyncTimer.current) clearInterval(autoSyncTimer.current); };
+  }, [hasUnsavedChanges, isEditing]);
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) { e.preventDefault(); e.returnValue = ""; }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasUnsavedChanges]);
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
+  const handleManualSave = useCallback(() => {
+    if (!editor || !currentContentRef.current || !isEditing) return;
+    saveMutation.mutate({ titre: title, contenu: currentContentRef.current });
+  }, [editor, title, isEditing, saveMutation]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        handleManualSave();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [handleManualSave]);
+
   function handleTitleChange(value: string) {
     setTitle(value);
     setHasUnsavedChanges(true);
@@ -413,10 +228,8 @@ export default function DocumentEditorPage() {
     saveMutation.mutate({ estFavori: newVal });
   }
 
-  // Image upload to Cloudinary
   async function handleImageUpload(file: File) {
     if (!file.type.startsWith("image/")) return;
-    setImageUploading(true);
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -433,14 +246,38 @@ export default function DocumentEditorPage() {
       }
     } catch (err) {
       console.error("Image upload failed:", err);
-    } finally {
-      setImageUploading(false);
     }
   }
 
-  const currentTextColor = editor?.getAttributes("textStyle")?.color ?? "";
-  const currentHighlight = editor?.getAttributes("highlight")?.color ?? "";
+  function handleExitEdit() {
+    if (hasUnsavedChanges && currentContentRef.current) {
+      saveMutation.mutate({ titre: title, contenu: currentContentRef.current });
+    }
+    setIsEditing(false);
+  }
 
+  function handleBack() {
+    if (hasUnsavedChanges) {
+      const ok = confirm(t("unsavedWarning"));
+      if (!ok) return;
+    }
+    router.push(`/${locale}/workspace/${workspaceId}/documents`);
+  }
+
+  async function handleExport(format: "pdf" | "docx" | "excel") {
+    setIsExporting(format);
+    try {
+      if (format === "pdf") await documentApi.exportPdf(docId, title);
+      if (format === "docx") await documentApi.exportDocx(docId, title);
+      if (format === "excel") await documentApi.exportExcel(docId, title);
+    } catch (err) {
+      console.error("Export failed:", err);
+    } finally {
+      setIsExporting(null);
+    }
+  }
+
+  // ── Loading screen ─────────────────────────────────────────────────────────
   if (isLoading || !editor) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -449,49 +286,122 @@ export default function DocumentEditorPage() {
     );
   }
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex h-full flex-col">
-        {/* Top bar */}
+      {/* Outer container — shifts left when AI panel is open */}
+      <div
+        className={cn(
+          "flex h-full flex-col transition-all duration-300",
+          aiPanelOpen ? "mr-[420px]" : "mr-0"
+        )}
+      >
+        {/* ── Top bar ─────────────────────────────────────────────────────── */}
         <div className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border bg-background px-4">
           <div className="flex items-center gap-2 min-w-0">
             <Button
               variant="ghost"
               size="sm"
               className="h-8 gap-1.5 px-2 text-muted-foreground hover:text-foreground shrink-0"
-              onClick={() => {
-                if (hasUnsavedChanges) {
-                  const ok = confirm(t("unsavedWarning"));
-                  if (!ok) return;
-                }
-                router.push(`/${locale}/workspace/${workspaceId}/documents`);
-              }}
+              onClick={handleBack}
             >
               <ChevronLeft className="h-4 w-4" />
               <span className="hidden sm:inline text-xs">{t("back")}</span>
             </Button>
 
-            <input
-              value={title}
-              onChange={(e) => handleTitleChange(e.target.value)}
-              placeholder={t("untitled")}
-              className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-foreground outline-none placeholder:text-muted-foreground truncate"
-            />
+            {isEditing ? (
+              <input
+                value={title}
+                onChange={(e) => handleTitleChange(e.target.value)}
+                placeholder={t("untitled")}
+                className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-foreground outline-none placeholder:text-muted-foreground truncate"
+              />
+            ) : (
+              <h1 className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground select-text">
+                {title || t("untitled")}
+              </h1>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {/* Save status */}
-            <span className="text-xs text-muted-foreground hidden sm:block">
-              {hasUnsavedChanges ? (
-                <span className="text-yellow-500 font-medium">
-                  {t("unsaved")}
-                </span>
-              ) : lastSaved ? (
-                `${t("saved", { time: formatDistanceToNow(lastSaved, { addSuffix: true }) })}`
-              ) : null}
-            </span>
+            {isEditing && (
+              <span className="text-xs text-muted-foreground hidden sm:block">
+                {hasUnsavedChanges ? (
+                  <span className="text-yellow-500 font-medium">{t("unsaved")}</span>
+                ) : lastSaved ? (
+                  t("saved", { time: formatDistanceToNow(lastSaved, { addSuffix: true }) })
+                ) : null}
+              </span>
+            )}
 
-            {/* Favori */}
+            {/* ── AI Assistant button ── */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setAiPanelOpen((v) => !v)}
+                  className={cn(
+                    "flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-all",
+                    aiPanelOpen
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
+                  )}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{t("askAi")}</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{aiPanelOpen ? t("closeAi") : t("openAi")}</TooltipContent>
+            </Tooltip>
+
+            {/* Export / Download */}
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      disabled={!!isExporting}
+                    >
+                      {isExporting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                    </button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>{t("export")}</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem
+                  className="gap-2 cursor-pointer"
+                  onClick={() => handleExport("pdf")}
+                  disabled={!!isExporting}
+                >
+                  <FileText className="h-3.5 w-3.5 text-red-500" />
+                  {t("exportPdf")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="gap-2 cursor-pointer"
+                  onClick={() => handleExport("docx")}
+                  disabled={!!isExporting}
+                >
+                  <FileDown className="h-3.5 w-3.5 text-blue-500" />
+                  {t("exportDocx")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="gap-2 cursor-pointer"
+                  onClick={() => handleExport("excel")}
+                  disabled={!!isExporting}
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5 text-green-600" />
+                  {t("exportExcel")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Star */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -501,9 +411,7 @@ export default function DocumentEditorPage() {
                     isFavori ? "text-yellow-500" : "text-muted-foreground",
                   )}
                 >
-                  <Star
-                    className={cn("h-4 w-4", isFavori && "fill-yellow-500")}
-                  />
+                  <Star className={cn("h-4 w-4", isFavori && "fill-yellow-500")} />
                 </button>
               </TooltipTrigger>
               <TooltipContent>
@@ -524,346 +432,87 @@ export default function DocumentEditorPage() {
               <TooltipContent>{t("versionHistory")}</TooltipContent>
             </Tooltip>
 
-            {/* Save button */}
-            <Button
-              size="sm"
-              className="gap-1.5"
-              onClick={handleManualSave}
-              disabled={saveMutation.isPending || !hasUnsavedChanges}
-            >
-              {saveMutation.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Save className="h-3.5 w-3.5" />
-              )}
-              <span className="hidden sm:inline">
-                {saveMutation.isPending ? t("saving") : t("save")}
-              </span>
-            </Button>
+            {/* Edit / Save / Done */}
+            {isEditing ? (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={handleManualSave}
+                  disabled={saveMutation.isPending || !hasUnsavedChanges}
+                >
+                  {saveMutation.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Save className="h-3.5 w-3.5" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {saveMutation.isPending ? t("saving") : t("save")}
+                  </span>
+                </Button>
+
+                <Button size="sm" className="gap-1.5" onClick={handleExitEdit}>
+                  <Eye className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{t("doneEditing")}</span>
+                </Button>
+              </>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span tabIndex={canEdit ? -1 : 0}>
+                    <Button
+                      size="sm"
+                      className="gap-1.5"
+                      disabled={!canEdit}
+                      onClick={() => setIsEditing(true)}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">{t("edit")}</span>
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!canEdit && <TooltipContent>{t("readOnly")}</TooltipContent>}
+              </Tooltip>
+            )}
           </div>
         </div>
 
-        {/* Toolbar */}
-        <div className="flex shrink-0 flex-wrap items-center gap-0.5 border-b border-border bg-background px-4 py-2">
-          <ToolbarBtn
-            onClick={() => editor.chain().focus().undo().run()}
-            disabled={!editor.can().undo()}
-            tooltip="Undo (Ctrl+Z)"
-          >
-            <Undo className="h-4 w-4" />
-          </ToolbarBtn>
-          <ToolbarBtn
-            onClick={() => editor.chain().focus().redo().run()}
-            disabled={!editor.can().redo()}
-            tooltip="Redo (Ctrl+Y)"
-          >
-            <Redo className="h-4 w-4" />
-          </ToolbarBtn>
+        {/* ── Toolbar ─────────────────────────────────────────────────────── */}
+        {isEditing && (
+          <EditorToolbar editor={editor} onImageUpload={handleImageUpload} />
+        )}
 
-          <Divider />
-
-          <ToolbarBtn
-            onClick={() =>
-              editor.chain().focus().toggleHeading({ level: 1 }).run()
-            }
-            active={editor.isActive("heading", { level: 1 })}
-            tooltip="Heading 1"
-          >
-            <Heading1 className="h-4 w-4" />
-          </ToolbarBtn>
-          <ToolbarBtn
-            onClick={() =>
-              editor.chain().focus().toggleHeading({ level: 2 }).run()
-            }
-            active={editor.isActive("heading", { level: 2 })}
-            tooltip="Heading 2"
-          >
-            <Heading2 className="h-4 w-4" />
-          </ToolbarBtn>
-          <ToolbarBtn
-            onClick={() =>
-              editor.chain().focus().toggleHeading({ level: 3 }).run()
-            }
-            active={editor.isActive("heading", { level: 3 })}
-            tooltip="Heading 3"
-          >
-            <Heading3 className="h-4 w-4" />
-          </ToolbarBtn>
-
-          <Divider />
-
-          <ToolbarBtn
-            onClick={() => editor.chain().focus().toggleBold().run()}
-            active={editor.isActive("bold")}
-            tooltip="Bold (Ctrl+B)"
-          >
-            <Bold className="h-4 w-4" />
-          </ToolbarBtn>
-          <ToolbarBtn
-            onClick={() => editor.chain().focus().toggleItalic().run()}
-            active={editor.isActive("italic")}
-            tooltip="Italic (Ctrl+I)"
-          >
-            <Italic className="h-4 w-4" />
-          </ToolbarBtn>
-          <ToolbarBtn
-            onClick={() => editor.chain().focus().toggleUnderline().run()}
-            active={editor.isActive("underline")}
-            tooltip="Underline (Ctrl+U)"
-          >
-            <UnderlineIcon className="h-4 w-4" />
-          </ToolbarBtn>
-          <ToolbarBtn
-            onClick={() => editor.chain().focus().toggleStrike().run()}
-            active={editor.isActive("strike")}
-            tooltip="Strikethrough"
-          >
-            <Strikethrough className="h-4 w-4" />
-          </ToolbarBtn>
-
-          <Divider />
-
-          <ColorPicker
-            colors={TEXT_COLORS}
-            value={currentTextColor}
-            onChange={(val) =>
-              val
-                ? editor.chain().focus().setColor(val).run()
-                : editor.chain().focus().unsetColor().run()
-            }
-            tooltip={t("textColor")}
-            icon={Palette}
-          />
-          <ColorPicker
-            colors={HIGHLIGHT_COLORS}
-            value={currentHighlight}
-            onChange={(val) =>
-              val
-                ? editor.chain().focus().toggleHighlight({ color: val }).run()
-                : editor.chain().focus().unsetHighlight().run()
-            }
-            tooltip={t("highlightColor")}
-            icon={Highlighter}
-          />
-          <ToolbarBtn
-            onClick={() => editor.chain().focus().toggleCode().run()}
-            active={editor.isActive("code")}
-            tooltip="Inline code"
-          >
-            <Code className="h-4 w-4" />
-          </ToolbarBtn>
-
-          <Divider />
-
-          <ToolbarBtn
-            onClick={() => editor.chain().focus().setTextAlign("left").run()}
-            active={editor.isActive({ textAlign: "left" })}
-            tooltip="Align left"
-          >
-            <AlignLeft className="h-4 w-4" />
-          </ToolbarBtn>
-          <ToolbarBtn
-            onClick={() => editor.chain().focus().setTextAlign("center").run()}
-            active={editor.isActive({ textAlign: "center" })}
-            tooltip="Align center"
-          >
-            <AlignCenter className="h-4 w-4" />
-          </ToolbarBtn>
-          <ToolbarBtn
-            onClick={() => editor.chain().focus().setTextAlign("right").run()}
-            active={editor.isActive({ textAlign: "right" })}
-            tooltip="Align right"
-          >
-            <AlignRight className="h-4 w-4" />
-          </ToolbarBtn>
-
-          <Divider />
-
-          <ToolbarBtn
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
-            active={editor.isActive("bulletList")}
-            tooltip="Bullet list"
-          >
-            <List className="h-4 w-4" />
-          </ToolbarBtn>
-          <ToolbarBtn
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            active={editor.isActive("orderedList")}
-            tooltip="Numbered list"
-          >
-            <ListOrdered className="h-4 w-4" />
-          </ToolbarBtn>
-          <ToolbarBtn
-            onClick={() => editor.chain().focus().toggleBlockquote().run()}
-            active={editor.isActive("blockquote")}
-            tooltip="Blockquote"
-          >
-            <Quote className="h-4 w-4" />
-          </ToolbarBtn>
-          <ToolbarBtn
-            onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-            active={editor.isActive("codeBlock")}
-            tooltip="Code block"
-          >
-            <Code className="h-4 w-4" />
-          </ToolbarBtn>
-          <ToolbarBtn
-            onClick={() => editor.chain().focus().setHorizontalRule().run()}
-            tooltip="Horizontal rule"
-          >
-            <Minus className="h-4 w-4" />
-          </ToolbarBtn>
-
-          <Divider />
-
-          {/* Image upload button */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  imageInputRef.current?.click();
-                }}
-                disabled={imageUploading}
-                className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-                  imageUploading && "opacity-50 cursor-not-allowed",
-                )}
-              >
-                {imageUploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ImageIcon className="h-4 w-4" />
-                )}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-xs">
-              {t("insertImage")}
-            </TooltipContent>
-          </Tooltip>
-          <input
-            ref={imageInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleImageUpload(file);
-              e.target.value = "";
-            }}
-          />
-        </div>
-
-        {/* Editor area */}
-        <div className="flex-1 overflow-y-auto">
+        {/* ── Content area ────────────────────────────────────────────────── */}
+        <div className="flex-1 min-h-0 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:transparent">
           <div className="mx-auto max-w-3xl px-8 py-10">
             <EditorContent editor={editor} />
           </div>
         </div>
 
-        {/* Version History Sheet */}
-        <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
-          <SheetContent side="right" className="w-80 p-0">
-            <SheetHeader className="border-b border-border px-4 py-4">
-              <SheetTitle className="flex items-center gap-2 text-sm">
-                <History className="h-4 w-4 text-primary" />
-                {t("versionHistoryPanel.title")}
-              </SheetTitle>
-            </SheetHeader>
-            <div className="overflow-y-auto h-full pb-20">
-              {!versions ? (
-                <div className="flex items-center justify-center py-10">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : versions.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center px-4">
-                  <History className="h-8 w-8 text-muted-foreground/30 mb-3" />
-                  <p className="text-sm font-medium">
-                    {t("versionHistoryPanel.noVersions")}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t("versionHistoryPanel.noVersionsDesc")}
-                  </p>
-                </div>
-              ) : (
-                <div className="divide-y divide-border">
-                  {versions.map((v) => (
-                    <div
-                      key={v.id}
-                      className="flex items-start gap-3 px-4 py-4 hover:bg-muted/30 transition-colors"
-                    >
-                      <Avatar className="h-7 w-7 shrink-0 mt-0.5">
-                        {v.createdBy.avatarUrl && (
-                          <AvatarImage src={v.createdBy.avatarUrl} />
-                        )}
-                        <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
-                          {v.createdBy.nom[0]}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-foreground">
-                          Version {v.numero}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {v.createdBy.nom}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {format(
-                            new Date(v.dateCreation),
-                            "MMM d, yyyy · HH:mm",
-                          )}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(v.dateCreation), {
-                            addSuffix: true,
-                          })}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setRestoreVersion(v)}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                      >
-                        <RotateCcw className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </SheetContent>
-        </Sheet>
-
-        {/* Restore confirmation */}
-        <Dialog
-          open={!!restoreVersion}
-          onOpenChange={() => setRestoreVersion(null)}
-        >
-          <DialogContent className="sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle>{t("restoreModal.title")}</DialogTitle>
-              <DialogDescription>
-                Version {restoreVersion?.numero} {t("restoreModal.desc")}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex justify-end gap-3 mt-2">
-              <Button variant="outline" onClick={() => setRestoreVersion(null)}>
-                {t("restoreModal.cancel")}
-              </Button>
-              <Button
-                onClick={() =>
-                  restoreVersion && restoreMutation.mutate(restoreVersion.id)
-                }
-                disabled={restoreMutation.isPending}
-              >
-                {t("restoreModal.submit")}
-                {restoreMutation.isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        {/* ── Version history ──────────────────────────────────────────────── */}
+        <VersionHistory
+          docId={docId}
+          workspaceId={workspaceId}
+          open={historyOpen}
+          onOpenChange={setHistoryOpen}
+          editor={editor}
+          onRestored={() => {
+            setHasUnsavedChanges(false);
+            setLastSaved(new Date());
+          }}
+        />
       </div>
+
+      {/* ── AI Chat Panel — fixed on right, slides in ────────────────────── */}
+      <AiChatPanel
+        open={aiPanelOpen}
+        onClose={() => setAiPanelOpen(false)}
+        workspaceId={workspaceId}
+        docId={docId}
+        docTitle={title}
+        mode="document"
+      />
     </TooltipProvider>
   );
 }

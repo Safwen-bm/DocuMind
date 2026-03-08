@@ -7,6 +7,7 @@ import { routing } from "@/i18n/routing";
 import { ThemeProvider } from "@/components/shared/theme-provider";
 import { QueryProvider } from "@/components/shared/query-provider";
 import "../globals.css";
+import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -42,6 +43,7 @@ export default async function LocaleLayout({
         >
           <NextIntlClientProvider messages={messages}>
             <QueryProvider>{children}</QueryProvider>
+            <Toaster position="top-right" richColors />
           </NextIntlClientProvider>
         </ThemeProvider>
       </body>

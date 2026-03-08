@@ -13,9 +13,11 @@ interface AuthState {
   token: string | null
   isAuthenticated: boolean
   pendingEmail: string | null
+  justLoggedIn: boolean
   setAuth: (user: User, token: string) => void
   setPendingEmail: (email: string) => void
   logout: () => void
+  setJustLoggedIn: (val: boolean) => void
 }
 
 function setCookie(name: string, value: string, days = 7) {
@@ -34,6 +36,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
       pendingEmail: null,
+      justLoggedIn: false,
 
       setAuth: (user, token) => {
         localStorage.setItem('access_token', token)
@@ -42,6 +45,8 @@ export const useAuthStore = create<AuthState>()(
       },
 
       setPendingEmail: (email) => set({ pendingEmail: email }),
+
+      setJustLoggedIn: (val) => set({ justLoggedIn: val }),
 
       logout: () => {
         localStorage.removeItem('access_token')

@@ -1,3 +1,5 @@
+//C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\components\dashboard\dashboard-sidebar.tsx
+
 "use client";
 
 import Link from "next/link";
@@ -16,6 +18,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   FileText,
+  Sparkles,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -95,6 +98,12 @@ export function DashboardSidebar({
           label: t("documentsNav"),
         },
         {
+          href: `/${locale}/workspace/${workspaceId}/ai`,
+          icon: Sparkles,
+          label: t("aiAssistant"),
+          highlight: true, // special styling for AI item
+        },
+        {
           href: `/${locale}/workspace/${workspaceId}/members`,
           icon: Users,
           label: t("members"),
@@ -107,18 +116,19 @@ export function DashboardSidebar({
       ]
     : [];
 
-  // Tooltip wrapper — only shows tooltip when collapsed
   function NavItem({
     href,
     icon: Icon,
     label,
     active,
+    highlight,
     onClick,
   }: {
     href?: string;
     icon: React.ElementType;
     label: string;
     active: boolean;
+    highlight?: boolean;
     onClick?: () => void;
   }) {
     const content = (
@@ -128,11 +138,22 @@ export function DashboardSidebar({
           collapsed ? "justify-center px-0 w-10 h-10 mx-auto" : "",
           active
             ? "bg-primary/10 text-primary"
-            : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+            : highlight
+              ? "text-primary/70 hover:bg-primary/8 hover:text-primary"
+              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
         )}
       >
-        <Icon className="h-4 w-4 shrink-0" />
+        <Icon
+          className={cn(
+            "h-4 w-4 shrink-0",
+            highlight && !active && "text-primary/60",
+          )}
+        />
         {!collapsed && <span>{label}</span>}
+        {/* AI badge — small dot indicator when not collapsed */}
+        {!collapsed && highlight && !active && (
+          <span className="ml-auto flex h-1.5 w-1.5 rounded-full bg-primary/60" />
+        )}
       </div>
     );
 
@@ -298,6 +319,7 @@ export function DashboardSidebar({
                     icon={item.icon}
                     label={item.label}
                     active={pathname === item.href}
+                    highlight={item.highlight}
                   />
                 ))}
               </div>

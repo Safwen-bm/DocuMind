@@ -8,12 +8,14 @@ import { ActiviteService } from '../activite/activite.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { ActionType, Prisma, Role } from '@prisma/client';
+import { AiService } from '../ai/ai.service';
 
 @Injectable()
 export class DocumentsService {
   constructor(
     private prisma: PrismaService,
     private activite: ActiviteService,
+    private aiService: AiService,
   ) {}
 
   async create(userId: string, workspaceId: string, dto: CreateDocumentDto) {
@@ -143,6 +145,10 @@ export class DocumentsService {
         cible: doc.titre,
         cibleId: doc.id,
       });
+    }
+
+    if (dto.contenu !== undefined) {
+      this.aiService.indexDocument(updated.id).catch(console.error);
     }
 
     return updated;
@@ -351,6 +357,42 @@ export class DocumentsService {
       data: {
         ...(data.titre !== undefined && { titre: data.titre }),
         ...(data.contenu !== undefined && { contenu: data.contenu }),
+      },
+    });
+  }
+
+  // Add this method to DocumentsService in documents.service.ts
+
+  async moveDocument(
+    userId: string,
+    documentId: string,
+    dossierId: string | null,
+  ) {
+    const doc = await this.prisma.document.findUnique({
+      where: { id: documentId },
+    });
+    if (!doc) throw new NotFoundException('Document introuvable.');
+
+    await this.checkRole(userId, doc.workspaceId, [
+      Role.EDITEUR,
+      Role.ADMINISTRATEUR,
+      Role.PROPRIETAIRE,
+    ]);
+
+    // If dossierId provided, validate it belongs to same workspace
+    if (dossierId) {
+      const dossier = await this.prisma.dossier.findFirst({
+        where: { id: dossierId, workspaceId: doc.workspaceId },
+      });
+      if (!dossier) throw new NotFoundException('Dossier introuvable.');
+    }
+
+    return this.prisma.document.update({
+      where: { id: documentId },
+      data: { dossierId: dossierId ?? null },
+      include: {
+        author: { select: { id: true, nom: true, avatarUrl: true } },
+        dossier: { select: { id: true, nom: true } },
       },
     });
   }

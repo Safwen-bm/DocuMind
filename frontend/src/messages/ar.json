@@ -240,7 +240,8 @@
       "currentWorkspace": "المساحة الحالية",
       "workspaces": "مساحات العمل",
       "welcomeBack": "مرحباً بعودتك",
-      "activity": "إليك نظرة عامة على نشاط مساحاتك."
+      "activity": "إليك نظرة عامة على نشاط مساحاتك.",
+      "aiAssistant": "المساعد الذكي"
     },
     "workspace": {
       "overviewNav": "نظرة عامة",
@@ -359,6 +360,9 @@
       "folders": "المجلدات",
       "newFolder": "مجلد جديد",
       "allDocuments": "جميع المستندات",
+      "documentsCount": "مستندات",
+      "newSubfolder": "مجلد فرعي جديد",
+      "moveToRoot": "نقل إلى الجذر",
       "noFoldersYet": "لا توجد مجلدات",
       "breadcrumb": "المستندات",
       "newDocument": "مستند جديد",
@@ -368,6 +372,20 @@
       "createFirstDesc": "أنشئ مستندك الأول لبدء توثيق معرفة فريقك.",
       "readOnlyDesc": "لم يتم إنشاء أي مستندات في هذه المساحة بعد.",
       "createDoc": "مستند جديد",
+      "explorer": "المستكشف",
+      "unfiled": "غير مصنّف",
+      "emptyFolder": "مجلد فارغ",
+      "willBeDeleted": "سيتم حذفه نهائياً.",
+      "upload": "رفع ملف",
+      "uploading": "جارٍ الرفع...",
+      "uploadSuccess": "تم استيراد {name} بنجاح",
+      "uploadError": "فشل الرفع. يرجى المحاولة مجدداً.",
+      "uploadSizeError": "الملف كبير جداً. الحجم الأقصى هو 20 ميغابايت.",
+      "uploadTypeError": "يُدعم فقط PDF وWord (.docx) وExcel (.xlsx).",
+      "download": "تنزيل",
+      "downloadAs": "تنزيل بصيغة",
+      "exportSuccess": "تم تنزيل الملف بنجاح.",
+      "exportError": "فشل التنزيل. يرجى المحاولة مرة أخرى.",
       "createDocModal": {
         "title": "مستند جديد",
         "desc": "أعط مستندك عنواناً للبدء.",
@@ -377,8 +395,9 @@
       },
       "createFolderModal": {
         "title": "مجلد جديد",
-        "desc": "نظّم مستنداتك باستخدام المجلدات.",
-        "placeholder": "اسم المجلد...",
+        "desc": "أنشئ مجلداً لتنظيم مستنداتك.",
+        "descSub": "أنشئ مجلداً فرعياً داخل المجلد المحدد.",
+        "placeholder": "اسم المجلد",
         "cancel": "إلغاء",
         "submit": "إنشاء"
       },
@@ -400,10 +419,11 @@
         "submit": "حذف"
       },
       "tooltips": {
-        "star": "إضافة للمفضلة",
+        "star": "إضافة إلى المفضلة",
         "unstar": "إزالة من المفضلة",
         "delete": "حذف",
-        "rename": "إعادة تسمية"
+        "rename": "إعادة تسمية",
+        "move": "نقل إلى..."
       }
     },
     "editor": {
@@ -415,12 +435,19 @@
       "versionHistory": "سجل الإصدارات",
       "save": "حفظ",
       "saving": "جارٍ الحفظ...",
+      "edit": "تعديل",
+      "doneEditing": "انتهاء",
+      "readOnly": "لديك صلاحية القراءة فقط",
       "placeholder": "ابدأ الكتابة هنا...",
       "untitled": "بدون عنوان",
       "unsavedWarning": "لديك تغييرات غير محفوظة. هل تريد المغادرة؟",
       "insertImage": "إدراج صورة",
       "textColor": "لون النص",
       "highlightColor": "لون التمييز",
+      "export": "تنزيل",
+      "exportPdf": "PDF تنزيل كـ",
+      "exportDocx": "Word تنزيل كـ",
+      "exportExcel": "Excel تنزيل كـ",
       "versionHistoryPanel": {
         "title": "سجل الإصدارات",
         "noVersions": "لا توجد إصدارات بعد",
@@ -431,7 +458,58 @@
         "desc": "سيصبح المحتوى الحالي. سيتم حفظ الإصدار الحالي تلقائياً قبل الاستعادة.",
         "cancel": "إلغاء",
         "submit": "استعادة"
-      }
+      },
+      "table": {
+        "label": "جدول",
+        "insert": "إدراج جدول",
+        "columns": "الأعمدة",
+        "addColBefore": "إضافة عمود قبل",
+        "addColAfter": "إضافة عمود بعد",
+        "deleteCol": "حذف العمود",
+        "rows": "الصفوف",
+        "addRowBefore": "إضافة صف قبل",
+        "addRowAfter": "إضافة صف بعد",
+        "deleteRow": "حذف الصف",
+        "delete": "حذف الجدول"
+      },
+      "askAi": "اسأل الذكاء الاصطناعي",
+      "openAi": "فتح المساعد الذكي",
+      "closeAi": "إغلاق المساعد الذكي"
+    },
+    "ai": {
+      "title": "المساعد الذكي",
+      "workspaceMode": "البحث في جميع مستندات المساحة",
+      "summarize": "تلخيص",
+      "clearChat": "مسح المحادثة",
+      "emptyTitle": "اسأل عن أي شيء في مستنداتك",
+      "emptyDescDocument": "اطرح أسئلة حول هذا المستند واحصل على إجابات دقيقة مدعومة بالذكاء الاصطناعي.",
+      "emptyDescWorkspace": "اطرح أسئلة على جميع مستندات المساحة واحصل على إجابات موثقة.",
+      "suggest1Doc": "ما هي الموضوعات الرئيسية في هذا المستند؟",
+      "suggest2Doc": "لخّص لي النقاط الأساسية.",
+      "suggest3Doc": "ما الإجراءات أو الخطوات التالية المذكورة؟",
+      "suggest1Ws": "ما الموضوعات الرئيسية في مستنداتنا؟",
+      "suggest2Ws": "ما العمليات أو سير العمل الموثقة؟",
+      "suggest3Ws": "ما القواعد أو الإرشادات المذكورة في وثائقنا؟",
+      "summaryTitle": "ملخص المستند",
+      "summaryGenerating": "جارٍ إنشاء الملخص...",
+      "summaryError": "فشل إنشاء الملخص. يرجى المحاولة مجدداً.",
+      "sources": "المصادر",
+      "errorResponse": "حدث خطأ ما. يرجى المحاولة مجدداً.",
+      "inputPlaceholderDocument": "اسأل عن هذا المستند... (Enter للإرسال)",
+      "inputPlaceholderWorkspace": "اسأل عن جميع المستندات... (Enter للإرسال)",
+      "disclaimer": "إجابات الذكاء الاصطناعي مستندة فقط إلى وثائق مساحتك.",
+      "pageTitle": "المساعد الذكي",
+      "pageSub": "اطرح أسئلة على جميع المستندات",
+      "pageEmptyTitle": "استفسر عن مساحة عملك",
+      "pageEmptyDesc": "يبحث المساعد الذكي في جميع المستندات المفهرسة في هذه المساحة لمنحك إجابات دقيقة وموثقة.",
+      "history": "السجل",
+      "historyTitle": "سجل المحادثات",
+      "historyEmpty": "لا توجد محادثات",
+      "historyEmptyDesc": "ابدأ محادثة جديدة وستظهر هنا.",
+      "newChat": "محادثة جديدة",
+      "messages": "رسائل",
+      "deleteConversation": "حذف المحادثة",
+      "conversationDeleted": "تم حذف المحادثة"
     }
   },
   "profile": {

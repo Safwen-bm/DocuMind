@@ -13,6 +13,7 @@ import { ActiviteModule } from './activite/activite.module';
 import { DossiersModule } from './dossiers/dossiers.module';
 import { DocumentsModule } from './documents/documents.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     DossiersModule,
     DocumentsModule,
     NotificationsModule,
+    AiModule,
   ],
   providers: [
     {

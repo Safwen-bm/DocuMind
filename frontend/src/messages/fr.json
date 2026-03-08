@@ -240,7 +240,8 @@
       "currentWorkspace": "Espace actuel",
       "workspaces": "Espaces de travail",
       "welcomeBack": "Bon retour",
-      "activity": "Voici un aperçu de l'activité de vos espaces."
+      "activity": "Voici un aperçu de l'activité de vos espaces.",
+      "aiAssistant": "Assistant IA"
     },
     "workspace": {
       "overviewNav": "Vue d'ensemble",
@@ -359,6 +360,9 @@
       "folders": "Dossiers",
       "newFolder": "Nouveau dossier",
       "allDocuments": "Tous les documents",
+      "documentsCount": "documents",
+      "newSubfolder": "Nouveau sous-dossier",
+      "moveToRoot": "Déplacer à la racine",
       "noFoldersYet": "Aucun dossier",
       "breadcrumb": "Documents",
       "newDocument": "Nouveau document",
@@ -368,6 +372,20 @@
       "createFirstDesc": "Créez votre premier document pour commencer à capturer les connaissances de votre équipe.",
       "readOnlyDesc": "Aucun document n'a encore été créé dans cet espace.",
       "createDoc": "Nouveau document",
+      "explorer": "Explorateur",
+      "unfiled": "Non classés",
+      "emptyFolder": "Dossier vide",
+      "willBeDeleted": "sera supprimé définitivement.",
+      "upload": "Importer un fichier",
+      "uploading": "Importation...",
+      "uploadSuccess": "{name} importé avec succès",
+      "uploadError": "Échec de l'importation. Veuillez réessayer.",
+      "uploadSizeError": "Fichier trop volumineux. Taille maximale : 20 Mo.",
+      "uploadTypeError": "Seuls les fichiers PDF, Word (.docx) et Excel (.xlsx) sont supportés.",
+      "download": "Télécharger",
+      "downloadAs": "Télécharger en",
+      "exportSuccess": "Fichier téléchargé avec succès.",
+      "exportError": "Le téléchargement a échoué. Veuillez réessayer.",
       "createDocModal": {
         "title": "Nouveau document",
         "desc": "Donnez un titre à votre document pour commencer.",
@@ -377,8 +395,9 @@
       },
       "createFolderModal": {
         "title": "Nouveau dossier",
-        "desc": "Organisez vos documents avec des dossiers.",
-        "placeholder": "Nom du dossier...",
+        "desc": "Créez un dossier pour organiser vos documents.",
+        "descSub": "Créez un sous-dossier dans le dossier sélectionné.",
+        "placeholder": "Nom du dossier",
         "cancel": "Annuler",
         "submit": "Créer"
       },
@@ -400,10 +419,11 @@
         "submit": "Supprimer"
       },
       "tooltips": {
-        "star": "Favori",
+        "star": "Ajouter aux favoris",
         "unstar": "Retirer des favoris",
         "delete": "Supprimer",
-        "rename": "Renommer"
+        "rename": "Renommer",
+        "move": "Déplacer vers..."
       }
     },
     "editor": {
@@ -415,12 +435,19 @@
       "versionHistory": "Historique des versions",
       "save": "Enregistrer",
       "saving": "Enregistrement...",
+      "edit": "Modifier",
+      "doneEditing": "Terminer",
+      "readOnly": "Vous avez un accès en lecture seule",
       "placeholder": "Commencez à écrire votre document...",
       "untitled": "Sans titre",
       "unsavedWarning": "Vous avez des modifications non sauvegardées. Quitter quand même ?",
       "insertImage": "Insérer une image",
       "textColor": "Couleur du texte",
       "highlightColor": "Couleur de surbrillance",
+      "export": "Télécharger",
+      "exportPdf": "Télécharger en PDF",
+      "exportDocx": "Télécharger en Word",
+      "exportExcel": "Télécharger en Excel",
       "versionHistoryPanel": {
         "title": "Historique des versions",
         "noVersions": "Aucune version",
@@ -431,7 +458,58 @@
         "desc": "deviendra le contenu actuel. Votre version actuelle sera sauvegardée automatiquement.",
         "cancel": "Annuler",
         "submit": "Restaurer"
-      }
+      },
+      "table": {
+        "label": "Tableau",
+        "insert": "Insérer un tableau",
+        "columns": "Colonnes",
+        "addColBefore": "Ajouter une colonne avant",
+        "addColAfter": "Ajouter une colonne après",
+        "deleteCol": "Supprimer la colonne",
+        "rows": "Lignes",
+        "addRowBefore": "Ajouter une ligne avant",
+        "addRowAfter": "Ajouter une ligne après",
+        "deleteRow": "Supprimer la ligne",
+        "delete": "Supprimer le tableau"
+      },
+      "askAi": "Demander à l'IA",
+      "openAi": "Ouvrir l'assistant IA",
+      "closeAi": "Fermer l'assistant IA"
+    },
+    "ai": {
+      "title": "Assistant IA",
+      "workspaceMode": "Recherche dans tous les documents",
+      "summarize": "Résumer",
+      "clearChat": "Effacer",
+      "emptyTitle": "Posez des questions sur vos documents",
+      "emptyDescDocument": "Posez des questions sur ce document et obtenez des réponses précises grâce à l'IA.",
+      "emptyDescWorkspace": "Posez des questions sur tous les documents de l'espace et obtenez des réponses sourcées.",
+      "suggest1Doc": "Quels sont les principaux sujets de ce document ?",
+      "suggest2Doc": "Résume-moi les points clés.",
+      "suggest3Doc": "Quelles actions ou prochaines étapes sont mentionnées ?",
+      "suggest1Ws": "Quels sont les principaux sujets de nos documents ?",
+      "suggest2Ws": "Quels processus ou workflows sont documentés ?",
+      "suggest3Ws": "Quelles règles ou directives sont mentionnées dans nos docs ?",
+      "summaryTitle": "Résumé du document",
+      "summaryGenerating": "Génération du résumé...",
+      "summaryError": "Échec de la génération. Veuillez réessayer.",
+      "sources": "Sources",
+      "errorResponse": "Une erreur est survenue. Veuillez réessayer.",
+      "inputPlaceholderDocument": "Posez une question sur ce document... (Entrée pour envoyer)",
+      "inputPlaceholderWorkspace": "Posez une question sur tous les documents... (Entrée pour envoyer)",
+      "disclaimer": "Les réponses IA sont basées uniquement sur vos documents.",
+      "pageTitle": "Assistant IA",
+      "pageSub": "Posez des questions sur tous les documents",
+      "pageEmptyTitle": "Interrogez votre espace de travail",
+      "pageEmptyDesc": "L'assistant IA recherche dans tous les documents indexés de cet espace pour vous donner des réponses précises et sourcées.",
+      "history": "Historique",
+      "historyTitle": "Historique des conversations",
+      "historyEmpty": "Aucune conversation",
+      "historyEmptyDesc": "Démarrez un nouveau chat et vos conversations apparaîtront ici.",
+      "newChat": "Nouveau chat",
+      "messages": "messages",
+      "deleteConversation": "Supprimer la conversation",
+      "conversationDeleted": "Conversation supprimée"
     }
   },
   "profile": {

@@ -1,3 +1,5 @@
+// src/documents/documents.controller.ts
+
 import {
   Controller,
   Get,
@@ -9,18 +11,38 @@ import {
   Query,
   UseGuards,
   Request,
+  Res,
+  HttpStatus,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import { Response } from 'express';
 import { DocumentsService } from './documents.service';
+import { ExportService } from './export.service';
+import { UploadService } from './upload.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { JwtGuard } from '../auth/jwt.guard';
+import { IsOptional, IsString } from 'class-validator';
+
+class MoveDocumentDto {
+  @IsOptional()
+  @IsString()
+  dossierId: string | null;
+}
 
 @UseGuards(JwtGuard)
 @Controller()
 export class DocumentsController {
-  constructor(private documentsService: DocumentsService) {}
+  constructor(
+    private documentsService: DocumentsService,
+    private exportService: ExportService,
+    private uploadService: UploadService,
+  ) {}
 
-  // Create document in a workspace
+  // ── Create document ───────────────────────────────────────────────────────
   @Post('workspaces/:workspaceId/documents')
   create(
     @Request() req,
@@ -30,7 +52,7 @@ export class DocumentsController {
     return this.documentsService.create(req.user.id, workspaceId, dto);
   }
 
-  // List documents in a workspace (optional ?dossierId= filter)
+  // ── List documents (optional folder filter) ───────────────────────────────
   @Get('workspaces/:workspaceId/documents')
   findAll(
     @Request() req,
@@ -40,31 +62,45 @@ export class DocumentsController {
     return this.documentsService.findAll(req.user.id, workspaceId, dossierId);
   }
 
-  // Dashboard: recent documents across all workspaces
+  // ── Import PDF / DOCX / XLSX → creates a new document ────────────────────
+  @Post('workspaces/:workspaceId/documents/upload')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  uploadDocument(
+    @Request() req,
+    @Param('workspaceId') workspaceId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Query('dossierId') dossierId?: string,
+  ) {
+    return this.uploadService.uploadAndCreate(
+      req.user.id,
+      workspaceId,
+      file,
+      dossierId,
+    );
+  }
+
+  // ── Static routes — MUST be before /:id ──────────────────────────────────
   @Get('documents/recent')
   getRecent(@Request() req) {
     return this.documentsService.getRecentAcrossWorkspaces(req.user.id);
   }
 
-  // Dashboard: favoris across all workspaces
   @Get('documents/favoris')
   getFavoris(@Request() req) {
     return this.documentsService.getFavoris(req.user.id);
   }
 
-  // Dashboard: stats across all workspaces
   @Get('documents/stats')
   getStats(@Request() req) {
     return this.documentsService.getStats(req.user.id);
   }
 
-  // Get one document
+  // ── Document CRUD ─────────────────────────────────────────────────────────
   @Get('documents/:id')
   findOne(@Request() req, @Param('id') id: string) {
     return this.documentsService.findOne(req.user.id, id);
   }
 
-  // Update document (content, title, favori)
   @Patch('documents/:id')
   update(
     @Request() req,
@@ -74,27 +110,35 @@ export class DocumentsController {
     return this.documentsService.update(req.user.id, id, dto);
   }
 
-  // Toggle favori
-  @Patch('documents/:id/favori')
-  toggleFavori(@Request() req, @Param('id') id: string) {
-    return this.documentsService.update(req.user.id, id, {
-      estFavori: undefined,
-    });
+  @Patch('documents/:id/silent')
+  updateSilent(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() dto: UpdateDocumentDto,
+  ) {
+    return this.documentsService.updateSilent(req.user.id, id, dto);
   }
 
-  // Delete document
+  @Patch('documents/:id/move')
+  move(@Request() req, @Param('id') id: string, @Body() dto: MoveDocumentDto) {
+    return this.documentsService.moveDocument(
+      req.user.id,
+      id,
+      dto.dossierId ?? null,
+    );
+  }
+
   @Delete('documents/:id')
   remove(@Request() req, @Param('id') id: string) {
     return this.documentsService.remove(req.user.id, id);
   }
 
-  // Get version history
+  // ── Versions ──────────────────────────────────────────────────────────────
   @Get('documents/:id/versions')
   getVersions(@Request() req, @Param('id') id: string) {
     return this.documentsService.getVersions(req.user.id, id);
   }
 
-  // Restore a version
   @Post('documents/:id/restore/:versionId')
   restoreVersion(
     @Request() req,
@@ -104,12 +148,58 @@ export class DocumentsController {
     return this.documentsService.restoreVersion(req.user.id, id, versionId);
   }
 
-  @Patch('documents/:id/silent')
-  updateSilent(
+  // ── Export ────────────────────────────────────────────────────────────────
+
+  @Get('documents/:id/export/pdf')
+  async exportPdf(
     @Request() req,
     @Param('id') id: string,
-    @Body() dto: UpdateDocumentDto,
+    @Res() res: Response,
   ) {
-    return this.documentsService.updateSilent(req.user.id, id, dto);
+    const buffer = await this.exportService.exportPdf(req.user.id, id);
+    const doc = await this.documentsService.findOne(req.user.id, id);
+    const filename = encodeURIComponent(doc.titre || 'document') + '.pdf';
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': buffer.length,
+    });
+    res.status(HttpStatus.OK).end(buffer);
+  }
+
+  @Get('documents/:id/export/docx')
+  async exportDocx(
+    @Request() req,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.exportService.exportDocx(req.user.id, id);
+    const doc = await this.documentsService.findOne(req.user.id, id);
+    const filename = encodeURIComponent(doc.titre || 'document') + '.docx';
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': buffer.length,
+    });
+    res.status(HttpStatus.OK).end(buffer);
+  }
+
+  @Get('documents/:id/export/excel')
+  async exportExcel(
+    @Request() req,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.exportService.exportExcel(req.user.id, id);
+    const doc = await this.documentsService.findOne(req.user.id, id);
+    const filename = encodeURIComponent(doc.titre || 'document') + '.xlsx';
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': buffer.length,
+    });
+    res.status(HttpStatus.OK).end(buffer);
   }
 }

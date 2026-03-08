@@ -17,7 +17,7 @@ export default function VerifyOtpPage() {
   const locale = params.locale as string
   const t = useTranslations("auth.otp")
   const tErr = useTranslations("auth.errors")
-  const { pendingEmail, setAuth } = useAuthStore()
+  const { pendingEmail, setAuth, setJustLoggedIn } = useAuthStore()
 
   const [loading, setLoading] = useState(false)
   const [resending, setResending] = useState(false)
@@ -38,6 +38,7 @@ export default function VerifyOtpPage() {
         otp,
       })
       setAuth(res.data.user, res.data.accessToken)
+      setJustLoggedIn(true)
       router.push(`/${locale}/dashboard`)
     } catch {
       setError(tErr("invalidOtp"))
