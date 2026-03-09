@@ -1,3 +1,4 @@
+//C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\app\[locale]\(dashboard)\workspace\[workspaceId]\documents\_components\FolderTree.tsx
 "use client"
 
 import { useState } from "react"

@@ -241,7 +241,15 @@
       "workspaces": "Workspaces",
       "welcomeBack": "Welcome back",
       "activity": "Here's an overview of your workspace activity.",
-      "aiAssistant": "AI Assistant"
+      "aiAssistant": "AI Assistant",
+      "search": {
+        "placeholder": "Search...",
+        "tooltip": "Search (Ctrl+K)"
+      },
+      "sidebar": {
+        "collapse": "Collapse",
+        "expand": "Expand"
+      }
     },
     "workspace": {
       "overviewNav": "Overview",
@@ -444,6 +452,7 @@
       "insertImage": "Insert image",
       "textColor": "Text color",
       "highlightColor": "Highlight color",
+      "share": "Share",
       "versionHistoryPanel": {
         "title": "Version History",
         "noVersions": "No versions yet",
@@ -509,7 +518,73 @@
       "newChat": "New chat",
       "messages": "messages",
       "deleteConversation": "Delete conversation",
-      "conversationDeleted": "Conversation deleted"
+      "conversationDeleted": "Conversation deleted",
+      "simplify": "Simplify",
+      "simplifyTitle": "Simplified Version",
+      "simplifyGenerating": "Simplifying document...",
+      "simplifyError": "Failed to simplify. Please try again."
+    },
+    "generate": {
+      "button": "Generate with AI",
+      "title": "Generate document with AI",
+      "subtitle": "Describe what you want and AI will write it for you",
+      "titreLabel": "Document title",
+      "titrePlaceholder": "e.g. API Integration Guide",
+      "descLabel": "What should the document contain?",
+      "descPlaceholder": "Describe in a few sentences what you want: the topic, structure, tone, target audience...",
+      "descHint": "Tip: the more detail you give, the better the result. Ctrl+Enter to generate.",
+      "examples": "Need inspiration?",
+      "example1": "A technical onboarding guide for new developers joining the team, covering environment setup, code conventions, and deployment workflow.",
+      "example2": "A meeting minutes template with sections for attendees, agenda items, decisions made, and action items with owners.",
+      "example3": "A product requirements document for a mobile app feature, including user stories, acceptance criteria, and edge cases.",
+      "example4": "A security policy document covering password requirements, access control, incident response, and employee responsibilities.",
+      "submit": "Generate document",
+      "generating": "Writing your document...",
+      "generatingDesc": "AI is generating a structured document based on your description. This takes a few seconds.",
+      "successToast": "\"{titre}\" created successfully",
+      "errorToast": "Failed to generate document. Please try again."
+    },
+    "share": {
+      "button": "Share",
+      "title": "Share document",
+      "createLink": "Create a share link",
+      "permissionRead": "Read only",
+      "permissionReadDesc": "Can view, not edit",
+      "permissionEdit": "Edit",
+      "permissionEditDesc": "Can view and edit",
+      "expiry": "Expires in:",
+      "never": "Never",
+      "generate": "Generate & copy link",
+      "activeLinks": "Active links",
+      "noLinks": "No active share links",
+      "copied": "Link copied!",
+      "revoke": "Revoke",
+      "expired": "Expired",
+      "expiresOn": "Expires {date}",
+      "neverExpires": "Never expires",
+      "invalidLink": "Invalid or expired link",
+      "invalidLinkDesc": "This share link no longer exists or has expired.",
+      "sharedVia": "Shared via",
+      "modifiedAgo": "Modified {time}",
+      "readOnlyBadge": "Read only",
+      "editBadge": "Edit access"
+    },
+    "search": {
+      "placeholder": "Search...",
+      "title": "Hybrid search",
+      "desc": "Type at least 2 characters. Combines full-text and AI semantic search.",
+      "fulltext": "Full text",
+      "semantic": "AI Semantic",
+      "results": "{count} result",
+      "resultsPlural": "{count} results",
+      "noResults": "No results for \"{query}\"",
+      "noResultsDesc": "Try different terms or check that documents are indexed.",
+      "navigate": "navigate",
+      "open": "open",
+      "close": "close",
+      "aiBadge": "AI",
+      "aiBothBadge": "AI + text",
+      "shortcut": "Ctrl+K"
     }
   },
   "profile": {

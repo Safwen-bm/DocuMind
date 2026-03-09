@@ -1,7 +1,6 @@
-//C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\components\dashboard\dashboard-sidebar.tsx
-
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -19,6 +18,7 @@ import {
   PanelLeftOpen,
   FileText,
   Sparkles,
+  Search,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -38,6 +38,7 @@ import {
 import { workspaceApi } from "@/lib/workspace.api";
 import { Workspace } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { SearchModal } from "@/components/dashboard/SearchModal";
 
 interface DashboardSidebarProps {
   collapsed: boolean;
@@ -58,6 +59,20 @@ export function DashboardSidebar({
   const { user, logout } = useAuthStore();
   const t = useTranslations("dashboard.nav");
   const tProfile = useTranslations("profile");
+
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // Ctrl+K global shortcut
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        if (workspaceId) setSearchOpen((v) => !v);
+      }
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [workspaceId]);
 
   const { data: workspaces } = useQuery<Workspace[]>({
     queryKey: ["workspaces"],
@@ -101,7 +116,7 @@ export function DashboardSidebar({
           href: `/${locale}/workspace/${workspaceId}/ai`,
           icon: Sparkles,
           label: t("aiAssistant"),
-          highlight: true, // special styling for AI item
+          highlight: true,
         },
         {
           href: `/${locale}/workspace/${workspaceId}/members`,
@@ -150,14 +165,13 @@ export function DashboardSidebar({
           )}
         />
         {!collapsed && <span>{label}</span>}
-        {/* AI badge — small dot indicator when not collapsed */}
         {!collapsed && highlight && !active && (
           <span className="ml-auto flex h-1.5 w-1.5 rounded-full bg-primary/60" />
         )}
       </div>
     );
 
-    const wrapped = collapsed ? (
+    return collapsed ? (
       <Tooltip>
         <TooltipTrigger asChild>
           {href ? (
@@ -181,8 +195,6 @@ export function DashboardSidebar({
         {content}
       </button>
     );
-
-    return wrapped;
   }
 
   return (
@@ -193,7 +205,7 @@ export function DashboardSidebar({
           collapsed ? "w-16" : "w-64",
         )}
       >
-        {/* Logo + collapse button */}
+        {/* Logo + collapse */}
         <div
           className={cn(
             "flex h-16 items-center border-b border-sidebar-border px-3",
@@ -212,7 +224,6 @@ export function DashboardSidebar({
               <span className="text-base font-bold">DocuMind</span>
             </Link>
           )}
-
           {collapsed && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -229,7 +240,6 @@ export function DashboardSidebar({
               </TooltipContent>
             </Tooltip>
           )}
-
           {!collapsed && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -241,13 +251,12 @@ export function DashboardSidebar({
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right">
-                <p>Collapse sidebar</p>
+                <p>{t("sidebar.collapse")}</p>
               </TooltipContent>
             </Tooltip>
           )}
         </div>
 
-        {/* Expand button when collapsed */}
         {collapsed && (
           <div className="flex justify-center pt-3 pb-1">
             <Tooltip>
@@ -260,14 +269,14 @@ export function DashboardSidebar({
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right">
-                <p>Expand sidebar</p>
+                <p>{t("sidebar.expand")}</p>
               </TooltipContent>
             </Tooltip>
           </div>
         )}
 
         <div className="flex-1 overflow-y-auto py-3 space-y-1">
-          {/* Dashboard link */}
+          {/* Dashboard */}
           <div className={cn("px-3", collapsed && "px-2")}>
             <NavItem
               href={`/${locale}/dashboard`}
@@ -277,7 +286,41 @@ export function DashboardSidebar({
             />
           </div>
 
-          {/* Current workspace section */}
+          {/* ── Search bar — only inside a workspace ── */}
+          {workspaceId && (
+            <div className={cn("px-3", collapsed && "px-2")}>
+              {collapsed ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setSearchOpen(true)}
+                      className="flex h-10 w-10 mx-auto items-center justify-center rounded-lg text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+                    >
+                      <Search className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    {t("search.tooltip")}
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <button
+                  onClick={() => setSearchOpen(true)}
+                  className="flex w-full items-center gap-2.5 rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:bg-muted/70 hover:text-foreground"
+                >
+                  <Search className="h-3.5 w-3.5 shrink-0" />
+                  <span className="flex-1 text-left text-xs">
+                    {t("search.placeholder")}
+                  </span>
+                  <kbd className="flex items-center rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium">
+                    ⌘K
+                  </kbd>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Current workspace nav */}
           {currentWorkspace && (
             <div className={cn("pt-4", collapsed ? "px-2" : "px-3")}>
               {!collapsed && (
@@ -295,7 +338,6 @@ export function DashboardSidebar({
                   </div>
                 </>
               )}
-
               {collapsed && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -310,7 +352,6 @@ export function DashboardSidebar({
                   </TooltipContent>
                 </Tooltip>
               )}
-
               <div className={cn("space-y-0.5", !collapsed && "pl-2")}>
                 {workspaceNav.map((item) => (
                   <NavItem
@@ -326,7 +367,7 @@ export function DashboardSidebar({
             </div>
           )}
 
-          {/* Workspaces list */}
+          {/* All workspaces */}
           {workspaces && workspaces.length > 0 && (
             <div className={cn("pt-4", collapsed ? "px-2" : "px-3")}>
               {!collapsed && (
@@ -422,9 +463,7 @@ export function DashboardSidebar({
                 className="w-56 mb-1"
               >
                 <div className="px-3 py-2">
-                  <p className="text-sm font-semibold text-foreground">
-                    {user?.nom}
-                  </p>
+                  <p className="text-sm font-semibold">{user?.nom}</p>
                   <p className="text-xs text-muted-foreground truncate">
                     {user?.email}
                   </p>
@@ -476,9 +515,7 @@ export function DashboardSidebar({
                 className="w-56 mb-1"
               >
                 <div className="px-3 py-2">
-                  <p className="text-sm font-semibold text-foreground">
-                    {user?.nom}
-                  </p>
+                  <p className="text-sm font-semibold">{user?.nom}</p>
                   <p className="text-xs text-muted-foreground truncate">
                     {user?.email}
                   </p>
@@ -504,6 +541,15 @@ export function DashboardSidebar({
           )}
         </div>
       </div>
+
+      {/* Search modal — global, triggered by sidebar or Ctrl+K */}
+      {workspaceId && (
+        <SearchModal
+          open={searchOpen}
+          onClose={() => setSearchOpen(false)}
+          workspaceId={workspaceId}
+        />
+      )}
     </TooltipProvider>
   );
 }

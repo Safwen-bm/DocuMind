@@ -1,5 +1,3 @@
-//C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\app\[locale]\(dashboard)\workspace\[workspaceId]\documents\page.tsx
-
 "use client";
 
 import { useRef, useState } from "react";
@@ -35,9 +33,11 @@ import {
   FileText,
   FileSpreadsheet,
   File,
+  Wand2,
 } from "lucide-react";
 import { FolderTree, getFolderPath } from "./_components/FolderTree";
 import { DocumentGrid } from "./_components/DocumentGrid";
+import { GenerateDocModal } from "./_components/GenerateDocModal";
 import { toast } from "sonner";
 
 // ── Accepted MIME types and extensions ───────────────────────────────────────
@@ -58,10 +58,12 @@ export default function DocumentsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const t = useTranslations("dashboard.documents");
+  const tDashboard = useTranslations("dashboard");
 
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [createDocOpen, setCreateDocOpen] = useState(false);
   const [createFolderOpen, setCreateFolderOpen] = useState(false);
+  const [generateOpen, setGenerateOpen] = useState(false);
   const [newDocTitle, setNewDocTitle] = useState("");
   const [newFolderName, setNewFolderName] = useState("");
   const [isUploading, setIsUploading] = useState(false);
@@ -151,7 +153,6 @@ export default function DocumentsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate MIME type (also check extension as fallback for some browsers)
     const ext = "." + file.name.split(".").pop()?.toLowerCase();
     if (!ACCEPTED_MIME.includes(file.type) && !ACCEPTED_EXT.includes(ext)) {
       toast.error(t("uploadTypeError"));
@@ -222,24 +223,36 @@ export default function DocumentsPage() {
               ))}
             </div>
 
-            {/* ── Upload button (EDITEUR+ only) ── */}
+            {/* ── Action buttons (EDITEUR+ only) ── */}
             {canEdit && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="shrink-0 gap-2"
-                disabled={isUploading}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {isUploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Upload className="h-4 w-4" />
-                )}
-                <span className="hidden sm:inline">
-                  {isUploading ? t("uploading") : t("upload")}
-                </span>
-              </Button>
+              <div className="flex shrink-0 items-center gap-2">
+                {/* Generate with AI button */}
+                <button
+                  onClick={() => setGenerateOpen(true)}
+                  className="flex items-center gap-1.5 rounded-xl border border-violet-500/30 bg-violet-500/5 px-3 py-1.5 text-xs font-medium text-violet-600 transition-all hover:border-violet-500/50 hover:bg-violet-500/10 dark:text-violet-400"
+                >
+                  <Wand2 className="h-3.5 w-3.5" />
+                  {tDashboard("generate.button")}
+                </button>
+
+                {/* Upload button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  disabled={isUploading}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {isUploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {isUploading ? t("uploading") : t("upload")}
+                  </span>
+                </Button>
+              </div>
             )}
           </div>
 
@@ -349,12 +362,22 @@ export default function DocumentsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* ── Generate with AI modal ── */}
+      <GenerateDocModal
+        open={generateOpen}
+        onClose={() => setGenerateOpen(false)}
+        workspaceId={workspaceId}
+        dossierId={selectedFolder ?? undefined}
+        onCreated={() => {
+          queryClient.invalidateQueries({ queryKey: ["docs", workspaceId] });
+        }}
+      />
     </TooltipProvider>
   );
 }
 
 // ── Reusable export dropdown — also used by DocumentGrid cards ────────────────
-// Export this so DocumentGrid can use it on each card
 export function ExportDropdown({
   docId,
   docTitre,

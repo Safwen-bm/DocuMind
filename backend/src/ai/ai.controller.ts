@@ -33,6 +33,24 @@ class ChatDto {
   conversationId?: string;
 }
 
+class GenerateDocDto {
+  @IsString()
+  @IsNotEmpty()
+  description: string;
+
+  @IsString()
+  @IsNotEmpty()
+  titre: string;
+
+  @IsString()
+  @IsNotEmpty()
+  workspaceId: string;
+
+  @IsOptional()
+  @IsString()
+  dossierId?: string;
+}
+
 @UseGuards(JwtGuard)
 @Controller('ai')
 export class AiController {
@@ -54,6 +72,26 @@ export class AiController {
   @Post('summarize/:docId')
   summarize(@Request() req, @Param('docId') docId: string) {
     return this.aiService.summarize(req.user.id, docId);
+  }
+
+  // ── Simplify a document ──────────────────────────────────────────────
+  // POST /ai/simplify/:docId
+  @Post('simplify/:docId')
+  simplify(@Request() req, @Param('docId') docId: string) {
+    return this.aiService.simplify(req.user.id, docId);
+  }
+
+  // ── Generate a document from description ─────────────────────────────
+  // POST /ai/generate
+  @Post('generate')
+  generate(@Request() req, @Body() dto: GenerateDocDto) {
+    return this.aiService.generateDocument(
+      req.user.id,
+      dto.workspaceId,
+      dto.description,
+      dto.titre,
+      dto.dossierId,
+    );
   }
 
   // ── Reindex all docs in a workspace ──────────────────────────────────

@@ -1,33 +1,52 @@
-"use client"
+// C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\app\[locale]\(dashboard)\workspace\[workspaceId]\documents\[docId]\_components\AiChatPanel.tsx
+"use client";
 
-import { useState, useRef, useEffect, useCallback } from "react"
-import { useRouter } from "next/navigation"
-import { useTranslations, useLocale } from "next-intl"
-import { aiApi, ChatSource, Conversation, ConversationMessage } from "@/lib/ai.api"
-import { cn } from "@/lib/utils"
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useTranslations, useLocale } from "next-intl";
 import {
-  X, Send, Loader2, Sparkles, User, FileText,
-  ChevronRight, RotateCcw, BookOpen, MessageSquare,
-  Trash2, Plus, ChevronLeft, Clock,
-} from "lucide-react"
+  aiApi,
+  ChatSource,
+  Conversation,
+  ConversationMessage,
+} from "@/lib/ai.api";
+import { cn } from "@/lib/utils";
+import {
+  X,
+  Send,
+  Loader2,
+  Sparkles,
+  User,
+  FileText,
+  ChevronRight,
+  RotateCcw,
+  BookOpen,
+  MessageSquare,
+  Trash2,
+  Plus,
+  Clock,
+  Wand2,
+} from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface Message {
-  id: string
-  role: "user" | "assistant"
-  content: string
-  sources?: ChatSource[]
-  loading?: boolean
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  sources?: ChatSource[];
+  loading?: boolean;
+  isSummary?: boolean;
+  isSimplify?: boolean;
 }
 
 interface AiChatPanelProps {
-  open: boolean
-  onClose: () => void
-  workspaceId: string
-  docId?: string
-  docTitle?: string
-  mode?: "document" | "workspace"
+  open: boolean;
+  onClose: () => void;
+  workspaceId: string;
+  docId?: string;
+  docTitle?: string;
+  mode?: "document" | "workspace";
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -40,174 +59,237 @@ export function AiChatPanel({
   docTitle,
   mode = "document",
 }: AiChatPanelProps) {
-  const locale = useLocale()
-  const router = useRouter()
-  const t = useTranslations("dashboard.ai")
+  const locale = useLocale();
+  const router = useRouter();
+  const t = useTranslations("dashboard.ai");
 
   // View: "chat" | "history"
-  const [view, setView] = useState<"chat" | "history">("chat")
+  const [view, setView] = useState<"chat" | "history">("chat");
 
   // Active conversation
-  const [conversationId, setConversationId] = useState<string | undefined>(undefined)
-  const [messages, setMessages] = useState<Message[]>([])
-  const [input, setInput] = useState("")
-  const [loading, setLoading] = useState(false)
+  const [conversationId, setConversationId] = useState<string | undefined>(
+    undefined,
+  );
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
 
   // Summary
-  const [summaryLoading, setSummaryLoading] = useState(false)
-  const [summary, setSummary] = useState<string | null>(null)
-  const [showSummary, setShowSummary] = useState(false)
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [showSummary, setShowSummary] = useState(false);
+
+  // Simplify
+  const [simplifyLoading, setSimplifyLoading] = useState(false);
 
   // History list
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [historyLoading, setHistoryLoading] = useState(false)
-  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // ── Focus input when panel opens ─────────────────────────────────────────
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 300)
-  }, [open])
+    if (open) setTimeout(() => inputRef.current?.focus(), 300);
+  }, [open]);
 
   // ── Scroll to bottom on new messages ─────────────────────────────────────
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   // ── Load history when switching to history view ───────────────────────────
   const loadHistory = useCallback(async () => {
-    setHistoryLoading(true)
+    setHistoryLoading(true);
     try {
-      const list = await aiApi.getConversations(workspaceId, docId)
-      setConversations(list)
+      const list = await aiApi.getConversations(workspaceId, docId);
+      setConversations(list);
     } catch {
       // silently fail
     } finally {
-      setHistoryLoading(false)
+      setHistoryLoading(false);
     }
-  }, [workspaceId, docId])
+  }, [workspaceId, docId]);
 
   useEffect(() => {
-    if (view === "history") loadHistory()
-  }, [view, loadHistory])
+    if (view === "history") loadHistory();
+  }, [view, loadHistory]);
 
   // ── Start a fresh conversation ────────────────────────────────────────────
   function startNew() {
-    setConversationId(undefined)
-    setMessages([])
-    setSummary(null)
-    setShowSummary(false)
-    setView("chat")
-    setTimeout(() => inputRef.current?.focus(), 100)
+    setConversationId(undefined);
+    setMessages([]);
+    setSummary(null);
+    setShowSummary(false);
+    setView("chat");
+    setTimeout(() => inputRef.current?.focus(), 100);
   }
 
   // ── Load an existing conversation ─────────────────────────────────────────
   async function openConversation(conv: Conversation) {
-    setView("chat")
-    setConversationId(conv.id)
-    setMessages([]) // show loading state
+    setView("chat");
+    setConversationId(conv.id);
+    setMessages([]);
 
     try {
-      const msgs = await aiApi.getMessages(workspaceId, conv.id)
+      const msgs = await aiApi.getMessages(workspaceId, conv.id);
       setMessages(
         msgs.map((m) => ({
           id: m.id,
           role: m.role === "UTILISATEUR" ? "user" : "assistant",
           content: m.contenu,
           sources: m.sources ?? undefined,
-        }))
-      )
+        })),
+      );
     } catch {
-      setMessages([])
+      setMessages([]);
     }
   }
 
   // ── Delete a conversation ─────────────────────────────────────────────────
   async function deleteConversation(id: string, e: React.MouseEvent) {
-    e.stopPropagation()
-    setDeletingId(id)
+    e.stopPropagation();
+    setDeletingId(id);
     try {
-      await aiApi.deleteConversation(id)
-      setConversations((prev) => prev.filter((c) => c.id !== id))
+      await aiApi.deleteConversation(id);
+      setConversations((prev) => prev.filter((c) => c.id !== id));
       // If it was the active one, reset
       if (conversationId === id) {
-        setConversationId(undefined)
-        setMessages([])
+        setConversationId(undefined);
+        setMessages([]);
       }
     } catch {
       // silently fail
     } finally {
-      setDeletingId(null)
+      setDeletingId(null);
     }
   }
 
   // ── Send a message ────────────────────────────────────────────────────────
   async function handleSend() {
-    const question = input.trim()
-    if (!question || loading) return
+    const question = input.trim();
+    if (!question || loading) return;
 
-    setInput("")
-    setShowSummary(false)
+    setInput("");
+    setShowSummary(false);
 
-    const userMsg: Message = { id: crypto.randomUUID(), role: "user", content: question }
-    const loadingMsg: Message = { id: crypto.randomUUID(), role: "assistant", content: "", loading: true }
+    const userMsg: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: question,
+    };
+    const loadingMsg: Message = {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content: "",
+      loading: true,
+    };
 
-    setMessages((prev) => [...prev, userMsg, loadingMsg])
-    setLoading(true)
+    setMessages((prev) => [...prev, userMsg, loadingMsg]);
+    setLoading(true);
 
     try {
-      const res = await aiApi.chat(workspaceId, question, docId, conversationId)
+      const res = await aiApi.chat(
+        workspaceId,
+        question,
+        docId,
+        conversationId,
+      );
 
       // Save conversationId from first message
-      if (!conversationId) setConversationId(res.conversationId)
+      if (!conversationId) setConversationId(res.conversationId);
 
       setMessages((prev) =>
         prev.map((m) =>
           m.loading
-            ? { ...m, content: res.answer, sources: res.sources, loading: false }
-            : m
-        )
-      )
+            ? {
+                ...m,
+                content: res.answer,
+                sources: res.sources,
+                loading: false,
+              }
+            : m,
+        ),
+      );
     } catch {
       setMessages((prev) =>
         prev.map((m) =>
-          m.loading ? { ...m, content: t("errorResponse"), loading: false } : m
-        )
-      )
+          m.loading ? { ...m, content: t("errorResponse"), loading: false } : m,
+        ),
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   // ── Summarize ─────────────────────────────────────────────────────────────
   async function handleSummarize() {
-    if (!docId || summaryLoading) return
-    setSummaryLoading(true)
-    setShowSummary(true)
-    setSummary(null)
+    if (!docId || summaryLoading) return;
+    setSummaryLoading(true);
+    setShowSummary(true);
+    setSummary(null);
     try {
-      setSummary(await aiApi.summarize(docId))
+      setSummary(await aiApi.summarize(docId));
     } catch {
-      setSummary(t("summaryError"))
+      setSummary(t("summaryError"));
     } finally {
-      setSummaryLoading(false)
+      setSummaryLoading(false);
+    }
+  }
+
+  // ── Simplify ──────────────────────────────────────────────────────────────
+  async function handleSimplify() {
+    if (!docId || simplifyLoading) return;
+    setSimplifyLoading(true);
+
+    const loadingMsg: Message = {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content: "",
+      loading: true,
+      isSimplify: true,
+    };
+    setMessages((prev) => [...prev, loadingMsg]);
+
+    try {
+      const result = await aiApi.simplify(docId);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.loading && m.isSimplify
+            ? { ...m, content: result, loading: false }
+            : m,
+        ),
+      );
+    } catch {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.loading && m.isSimplify
+            ? { ...m, content: t("simplifyError"), loading: false }
+            : m,
+        ),
+      );
+    } finally {
+      setSimplifyLoading(false);
     }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
+      e.preventDefault();
+      handleSend();
     }
   }
 
   function handleSourceClick(source: ChatSource) {
-    router.push(`/${locale}/workspace/${workspaceId}/documents/${source.documentId}`)
+    router.push(
+      `/${locale}/workspace/${workspaceId}/documents/${source.documentId}`,
+    );
   }
 
-  const isEmpty = messages.length === 0 && !showSummary
+  const isEmpty = messages.length === 0 && !showSummary;
+  const isBusy = loading || summaryLoading || simplifyLoading;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -224,7 +306,7 @@ export function AiChatPanel({
       <div
         className={cn(
           "fixed right-0 top-0 z-40 flex h-full w-full max-w-[420px] flex-col border-l border-border bg-background shadow-2xl transition-transform duration-300 ease-in-out",
-          open ? "translate-x-0" : "translate-x-full"
+          open ? "translate-x-0" : "translate-x-full",
         )}
       >
         {/* ── Header ───────────────────────────────────────────────────────── */}
@@ -255,14 +337,31 @@ export function AiChatPanel({
             {mode === "document" && docId && view === "chat" && (
               <button
                 onClick={handleSummarize}
-                disabled={summaryLoading}
+                disabled={isBusy}
                 className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
               >
-                {summaryLoading
-                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  : <BookOpen className="h-3.5 w-3.5" />
-                }
+                {summaryLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <BookOpen className="h-3.5 w-3.5" />
+                )}
                 {t("summarize")}
+              </button>
+            )}
+
+            {/* Simplify — document mode only */}
+            {mode === "document" && docId && view === "chat" && (
+              <button
+                onClick={handleSimplify}
+                disabled={isBusy}
+                className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-violet-600 transition-colors hover:bg-violet-500/10 hover:text-violet-700 disabled:opacity-50 dark:text-violet-400 dark:hover:text-violet-300"
+              >
+                {simplifyLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Wand2 className="h-3.5 w-3.5" />
+                )}
+                {t("simplify")}
               </button>
             )}
 
@@ -273,7 +372,7 @@ export function AiChatPanel({
                 "flex h-7 w-7 items-center justify-center rounded-md transition-colors",
                 view === "history"
                   ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
               )}
               title={t("history")}
             >
@@ -336,51 +435,60 @@ export function AiChatPanel({
             {!historyLoading && conversations.length === 0 && (
               <div className="flex flex-col items-center justify-center py-14 text-center">
                 <MessageSquare className="h-8 w-8 text-muted-foreground/40 mb-3" />
-                <p className="text-sm font-medium text-muted-foreground">{t("historyEmpty")}</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">{t("historyEmptyDesc")}</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  {t("historyEmpty")}
+                </p>
+                <p className="text-xs text-muted-foreground/60 mt-1">
+                  {t("historyEmptyDesc")}
+                </p>
               </div>
             )}
 
-            {!historyLoading && conversations.map((conv) => (
-              <div
-                key={conv.id}
-                onClick={() => openConversation(conv)}
-                className={cn(
-                  "group relative flex items-start gap-3 rounded-xl border border-border bg-card px-3 py-3 cursor-pointer transition-all hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm",
-                  conversationId === conv.id && "border-primary/40 bg-primary/8"
-                )}
-              >
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 mt-0.5">
-                  <MessageSquare className="h-3.5 w-3.5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-foreground truncate leading-snug">
-                    {conv.titre}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] text-muted-foreground">
-                      {conv._count.messages} {t("messages")}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground/50">·</span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {new Date(conv.dateMiseAJour).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Delete button */}
-                <button
-                  onClick={(e) => deleteConversation(conv.id, e)}
-                  disabled={deletingId === conv.id}
-                  className="shrink-0 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/0 group-hover:text-muted-foreground transition-all hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+            {!historyLoading &&
+              conversations.map((conv) => (
+                <div
+                  key={conv.id}
+                  onClick={() => openConversation(conv)}
+                  className={cn(
+                    "group relative flex items-start gap-3 rounded-xl border border-border bg-card px-3 py-3 cursor-pointer transition-all hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm",
+                    conversationId === conv.id &&
+                      "border-primary/40 bg-primary/8",
+                  )}
                 >
-                  {deletingId === conv.id
-                    ? <Loader2 className="h-3 w-3 animate-spin" />
-                    : <Trash2 className="h-3 w-3" />
-                  }
-                </button>
-              </div>
-            ))}
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 mt-0.5">
+                    <MessageSquare className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-foreground truncate leading-snug">
+                      {conv.titre}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] text-muted-foreground">
+                        {conv._count.messages} {t("messages")}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground/50">
+                        ·
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {new Date(conv.dateMiseAJour).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Delete button */}
+                  <button
+                    onClick={(e) => deleteConversation(conv.id, e)}
+                    disabled={deletingId === conv.id}
+                    className="shrink-0 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/0 group-hover:text-muted-foreground transition-all hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                  >
+                    {deletingId === conv.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3 w-3" />
+                    )}
+                  </button>
+                </div>
+              ))}
           </div>
         )}
 
@@ -388,7 +496,6 @@ export function AiChatPanel({
         {view === "chat" && (
           <>
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
-
               {/* Empty state */}
               {isEmpty && (
                 <div className="flex flex-col items-center justify-center h-full text-center py-10">
@@ -399,7 +506,9 @@ export function AiChatPanel({
                     {t("emptyTitle")}
                   </p>
                   <p className="text-xs text-muted-foreground max-w-[260px] leading-relaxed">
-                    {mode === "document" ? t("emptyDescDocument") : t("emptyDescWorkspace")}
+                    {mode === "document"
+                      ? t("emptyDescDocument")
+                      : t("emptyDescWorkspace")}
                   </p>
 
                   {/* Suggested questions */}
@@ -425,7 +534,9 @@ export function AiChatPanel({
                 <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <BookOpen className="h-4 w-4 text-primary shrink-0" />
-                    <p className="text-xs font-semibold text-primary">{t("summaryTitle")}</p>
+                    <p className="text-xs font-semibold text-primary">
+                      {t("summaryTitle")}
+                    </p>
                   </div>
                   {summaryLoading ? (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -444,21 +555,50 @@ export function AiChatPanel({
               {messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "justify-start")}
+                  className={cn(
+                    "flex gap-3",
+                    msg.role === "user" ? "justify-end" : "justify-start",
+                  )}
                 >
                   {msg.role === "assistant" && (
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 mt-0.5">
-                      <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    <div
+                      className={cn(
+                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-full mt-0.5",
+                        msg.isSimplify ? "bg-violet-500/10" : "bg-primary/10",
+                      )}
+                    >
+                      {msg.isSimplify ? (
+                        <Wand2 className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+                      ) : (
+                        <Sparkles className="h-3.5 w-3.5 text-primary" />
+                      )}
                     </div>
                   )}
 
-                  <div className={cn("max-w-[80%] space-y-2", msg.role === "user" ? "items-end" : "items-start")}>
+                  <div
+                    className={cn(
+                      "max-w-[80%] space-y-2",
+                      msg.role === "user" ? "items-end" : "items-start",
+                    )}
+                  >
+                    {/* Badge for simplify messages */}
+                    {msg.isSimplify && !msg.loading && (
+                      <div className="flex items-center gap-1.5 px-1">
+                        <Wand2 className="h-2.5 w-2.5 text-violet-600 dark:text-violet-400" />
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
+                          {t("simplifyTitle")}
+                        </p>
+                      </div>
+                    )}
+
                     <div
                       className={cn(
                         "rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
                         msg.role === "user"
                           ? "bg-primary text-primary-foreground rounded-tr-sm"
-                          : "bg-muted text-foreground rounded-tl-sm"
+                          : msg.isSimplify
+                            ? "border border-violet-500/20 bg-violet-500/5 text-foreground rounded-tl-sm"
+                            : "bg-muted text-foreground rounded-tl-sm",
                       )}
                     >
                       {msg.loading ? (
@@ -527,19 +667,20 @@ export function AiChatPanel({
                       : t("inputPlaceholderWorkspace")
                   }
                   rows={1}
-                  disabled={loading}
+                  disabled={isBusy}
                   className="flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none disabled:opacity-50 max-h-32 [&::-webkit-scrollbar]:hidden"
                   style={{ fieldSizing: "content" } as any}
                 />
                 <button
                   onClick={handleSend}
-                  disabled={!input.trim() || loading}
+                  disabled={!input.trim() || isBusy}
                   className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {loading
-                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    : <Send className="h-3.5 w-3.5" />
-                  }
+                  {loading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Send className="h-3.5 w-3.5" />
+                  )}
                 </button>
               </div>
               <p className="mt-2 text-center text-[10px] text-muted-foreground">
@@ -550,5 +691,5 @@ export function AiChatPanel({
         )}
       </div>
     </>
-  )
+  );
 }

@@ -241,7 +241,15 @@
       "workspaces": "Espaces de travail",
       "welcomeBack": "Bon retour",
       "activity": "Voici un aperçu de l'activité de vos espaces.",
-      "aiAssistant": "Assistant IA"
+      "aiAssistant": "Assistant IA",
+      "search": {
+        "placeholder": "Rechercher...",
+        "tooltip": "Rechercher (Ctrl+K)"
+      },
+      "sidebar": {
+        "collapse": "Réduire",
+        "expand": "Agrandir"
+      }
     },
     "workspace": {
       "overviewNav": "Vue d'ensemble",
@@ -448,6 +456,7 @@
       "exportPdf": "Télécharger en PDF",
       "exportDocx": "Télécharger en Word",
       "exportExcel": "Télécharger en Excel",
+      "share": "Partager",
       "versionHistoryPanel": {
         "title": "Historique des versions",
         "noVersions": "Aucune version",
@@ -509,7 +518,73 @@
       "newChat": "Nouveau chat",
       "messages": "messages",
       "deleteConversation": "Supprimer la conversation",
-      "conversationDeleted": "Conversation supprimée"
+      "conversationDeleted": "Conversation supprimée",
+      "simplify": "Simplifier",
+      "simplifyTitle": "Version simplifiée",
+      "simplifyGenerating": "Simplification du document...",
+      "simplifyError": "Échec de la simplification. Réessayez."
+    },
+    "generate": {
+      "button": "Générer avec l'IA",
+      "title": "Générer un document avec l'IA",
+      "subtitle": "Décrivez ce que vous voulez et l'IA l'écrira pour vous",
+      "titreLabel": "Titre du document",
+      "titrePlaceholder": "ex. Guide d'intégration API",
+      "descLabel": "Que doit contenir le document ?",
+      "descPlaceholder": "Décrivez en quelques phrases ce que vous voulez : le sujet, la structure, le ton, le public cible...",
+      "descHint": "Conseil : plus vous donnez de détails, meilleur sera le résultat. Ctrl+Entrée pour générer.",
+      "examples": "Besoin d'inspiration ?",
+      "example1": "Un guide d'onboarding technique pour les nouveaux développeurs, couvrant la configuration de l'environnement, les conventions de code et le processus de déploiement.",
+      "example2": "Un modèle de compte-rendu de réunion avec les sections participants, ordre du jour, décisions prises et actions à suivre.",
+      "example3": "Un document de spécifications produit pour une fonctionnalité mobile, incluant les user stories, critères d'acceptation et cas limites.",
+      "example4": "Une politique de sécurité informatique couvrant les exigences de mot de passe, le contrôle d'accès, la réponse aux incidents et les responsabilités des employés.",
+      "submit": "Générer le document",
+      "generating": "Rédaction de votre document...",
+      "generatingDesc": "L'IA génère un document structuré à partir de votre description. Cela prend quelques secondes.",
+      "successToast": "\"{titre}\" créé avec succès",
+      "errorToast": "Échec de la génération. Veuillez réessayer."
+    },
+    "share": {
+      "button": "Partager",
+      "title": "Partager le document",
+      "createLink": "Créer un lien de partage",
+      "permissionRead": "Lecture seule",
+      "permissionReadDesc": "Peut voir, pas modifier",
+      "permissionEdit": "Édition",
+      "permissionEditDesc": "Peut voir et modifier",
+      "expiry": "Expire dans :",
+      "never": "Jamais",
+      "generate": "Générer et copier le lien",
+      "activeLinks": "Liens actifs",
+      "noLinks": "Aucun lien de partage actif",
+      "copied": "Lien copié !",
+      "revoke": "Révoquer",
+      "expired": "Expiré",
+      "expiresOn": "Expire le {date}",
+      "neverExpires": "N'expire jamais",
+      "invalidLink": "Lien invalide ou expiré",
+      "invalidLinkDesc": "Ce lien de partage n'existe plus ou a expiré.",
+      "sharedVia": "Partagé via",
+      "modifiedAgo": "Modifié {time}",
+      "readOnlyBadge": "Lecture seule",
+      "editBadge": "Accès édition"
+    },
+    "search": {
+      "placeholder": "Rechercher...",
+      "title": "Recherche hybride",
+      "desc": "Tapez au moins 2 caractères. Combine recherche plein texte et sémantique IA.",
+      "fulltext": "Plein texte",
+      "semantic": "Sémantique IA",
+      "results": "{count} résultat",
+      "resultsPlural": "{count} résultats",
+      "noResults": "Aucun résultat pour \"{query}\"",
+      "noResultsDesc": "Essayez d'autres termes ou vérifiez que les documents sont indexés.",
+      "navigate": "naviguer",
+      "open": "ouvrir",
+      "close": "fermer",
+      "aiBadge": "IA",
+      "aiBothBadge": "IA + texte",
+      "shortcut": "Ctrl+K"
     }
   },
   "profile": {

@@ -14,6 +14,8 @@ import { DossiersModule } from './dossiers/dossiers.module';
 import { DocumentsModule } from './documents/documents.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AiModule } from './ai/ai.module';
+import { SearchModule } from './search/search.module';
+import { ShareModule } from './share/share.module';
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { AiModule } from './ai/ai.module';
     DocumentsModule,
     NotificationsModule,
     AiModule,
+    SearchModule, 
+    ShareModule,
   ],
   providers: [
     {

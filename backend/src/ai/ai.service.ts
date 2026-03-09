@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, RoleIA } from '@prisma/client';
@@ -12,7 +13,6 @@ const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 export class AiService {
   constructor(private prisma: PrismaService) {}
 
-  // ── 1. Extract plain text from TipTap JSON ─────────────────────────────
   private extractText(node: any): string {
     if (!node) return '';
     if (node.type === 'text') return node.text || '';
@@ -24,7 +24,6 @@ export class AiService {
     return '';
   }
 
-  // ── 2. Split text into chunks (~500 chars with 50 overlap) ─────────────
   private chunkText(text: string, size = 500, overlap = 50): string[] {
     const chunks: string[] = [];
     let i = 0;
@@ -35,7 +34,6 @@ export class AiService {
     return chunks.filter((c) => c.trim().length > 20);
   }
 
-  // ── 3. Get embedding vector via Gemini REST ────────────────────────────
   private async getEmbedding(text: string): Promise<number[]> {
     const key = process.env.GEMINI_API_KEY;
     const res = await fetch(
@@ -54,7 +52,10 @@ export class AiService {
     return data.embedding.values;
   }
 
-  // ── 4. Generate text via Groq REST ────────────────────────────────────
+  async getEmbeddingPublic(text: string): Promise<number[]> {
+    return this.getEmbedding(text);
+  }
+
   private async generateText(prompt: string): Promise<string> {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -77,8 +78,6 @@ export class AiService {
     return data.choices?.[0]?.message?.content ?? 'No response generated.';
   }
 
-  // ── 5. Index a document ───────────────────────────────────────────────
-  //  Called after: save in editor, upload, restore version
   async indexDocument(documentId: string): Promise<void> {
     try {
       const doc = await this.prisma.document.findUnique({
@@ -91,25 +90,16 @@ export class AiService {
 
       const chunks = this.chunkText(text);
 
-      // Wipe old chunks
       await this.prisma.$executeRaw`
         DELETE FROM document_chunks WHERE "documentId" = ${documentId}
       `;
 
-      // Insert new chunks
       for (let i = 0; i < chunks.length; i++) {
         const embedding = await this.getEmbedding(chunks[i]);
         const vectorStr = `[${embedding.join(',')}]`;
         await this.prisma.$executeRaw`
           INSERT INTO document_chunks ("id", "documentId", "contenu", "embedding", "chunkIndex", "dateCreation")
-          VALUES (
-            gen_random_uuid(),
-            ${documentId},
-            ${chunks[i]},
-            ${vectorStr}::vector,
-            ${i},
-            NOW()
-          )
+          VALUES (gen_random_uuid(), ${documentId}, ${chunks[i]}, ${vectorStr}::vector, ${i}, NOW())
         `;
       }
 
@@ -118,14 +108,12 @@ export class AiService {
         data: { estIndexe: true },
       });
 
-      console.log(`✅ Indexed doc ${documentId} — ${chunks.length} chunks`);
+      console.log(`Indexed doc ${documentId} — ${chunks.length} chunks`);
     } catch (err) {
-      // Non-blocking — never crash the caller
-      console.error('❌ Indexing error for doc', documentId, err);
+      console.error('Indexing error for doc', documentId, err);
     }
   }
 
-  // ── 6. Reindex all documents in a workspace ───────────────────────────
   async reindexWorkspace(
     userId: string,
     workspaceId: string,
@@ -142,7 +130,6 @@ export class AiService {
       select: { id: true },
     });
 
-    // Fire and forget — don't await, endpoint returns immediately
     for (const doc of docs) {
       this.indexDocument(doc.id);
     }
@@ -150,7 +137,6 @@ export class AiService {
     return { indexed: docs.length };
   }
 
-  // ── 7. RAG Chat — persists conversation + messages ────────────────────
   async chat(
     userId: string,
     workspaceId: string,
@@ -162,7 +148,6 @@ export class AiService {
     sources: { documentId: string; titre: string; excerpt: string }[];
     conversationId: string;
   }> {
-    // Verify workspace membership
     const membre = await this.prisma.membreWorkspace.findUnique({
       where: {
         utilisateurId_workspaceId: { utilisateurId: userId, workspaceId },
@@ -170,7 +155,6 @@ export class AiService {
     });
     if (!membre) throw new ForbiddenException('Accès refusé.');
 
-    // Get existing conversation or create new one
     let conversation = conversationId
       ? await this.prisma.conversation.findUnique({
           where: { id: conversationId },
@@ -178,7 +162,6 @@ export class AiService {
       : null;
 
     if (!conversation) {
-      // Use first question as conversation title (max 60 chars)
       const titre =
         question.length > 60 ? question.slice(0, 57) + '...' : question;
       conversation = await this.prisma.conversation.create({
@@ -191,7 +174,6 @@ export class AiService {
       });
     }
 
-    // Persist user message
     await this.prisma.messageIA.create({
       data: {
         conversationId: conversation.id,
@@ -200,11 +182,9 @@ export class AiService {
       },
     });
 
-    // Embed the question
     const questionEmbedding = await this.getEmbedding(question);
     const vectorStr = `[${questionEmbedding.join(',')}]`;
 
-    // pgvector cosine similarity search
     const chunks = await this.prisma.$queryRaw<
       {
         id: string;
@@ -214,11 +194,7 @@ export class AiService {
         similarity: number;
       }[]
     >`
-      SELECT
-        dc.id,
-        dc."documentId",
-        dc.contenu,
-        d.titre,
+      SELECT dc.id, dc."documentId", dc.contenu, d.titre,
         1 - (dc.embedding <=> ${vectorStr}::vector) as similarity
       FROM document_chunks dc
       JOIN documents d ON d.id = dc."documentId"
@@ -239,7 +215,6 @@ export class AiService {
       const context = chunks
         .map((c, i) => `[Source ${i + 1} — ${c.titre}]:\n${c.contenu}`)
         .join('\n\n');
-
       const prompt = `You are a helpful assistant that answers questions based strictly on the provided document context. Do not use outside knowledge.
 
 Context from workspace documents:
@@ -251,7 +226,6 @@ Answer based only on the context above. If the answer is not in the context, say
 
       answer = await this.generateText(prompt);
 
-      // Deduplicate sources by documentId
       const seen = new Set<string>();
       sources = chunks
         .filter((c) => {
@@ -266,7 +240,6 @@ Answer based only on the context above. If the answer is not in the context, say
         }));
     }
 
-    // Persist assistant message with sources
     await this.prisma.messageIA.create({
       data: {
         conversationId: conversation.id,
@@ -276,7 +249,6 @@ Answer based only on the context above. If the answer is not in the context, say
       },
     });
 
-    // Bump conversation timestamp
     await this.prisma.conversation.update({
       where: { id: conversation.id },
       data: { dateMiseAJour: new Date() },
@@ -285,7 +257,6 @@ Answer based only on the context above. If the answer is not in the context, say
     return { answer, sources, conversationId: conversation.id };
   }
 
-  // ── 8. Get conversations list (scoped to workspace, optionally to doc) ─
   async getConversations(
     userId: string,
     workspaceId: string,
@@ -302,18 +273,14 @@ Answer based only on the context above. If the answer is not in the context, say
       where: {
         utilisateurId: userId,
         workspaceId,
-        // docId passed = filter to that doc; docId is empty string = workspace-wide; undefined = all
         ...(docId !== undefined ? { documentId: docId || null } : {}),
       },
-      include: {
-        _count: { select: { messages: true } },
-      },
+      include: { _count: { select: { messages: true } } },
       orderBy: { dateMiseAJour: 'desc' },
       take: 30,
     });
   }
 
-  // ── 9. Get messages for a conversation ────────────────────────────────
   async getConversationMessages(
     userId: string,
     conversationId: string,
@@ -331,7 +298,6 @@ Answer based only on the context above. If the answer is not in the context, say
     });
   }
 
-  // ── 10. Delete a conversation (cascades to messages automatically) ─────
   async deleteConversation(
     userId: string,
     conversationId: string,
@@ -347,7 +313,6 @@ Answer based only on the context above. If the answer is not in the context, say
     return { deleted: true };
   }
 
-  // ── 11. Summarize a document ──────────────────────────────────────────
   async summarize(userId: string, documentId: string): Promise<string> {
     const doc = await this.prisma.document.findUnique({
       where: { id: documentId },
@@ -377,5 +342,133 @@ ${text.slice(0, 8000)}
 Provide a concise summary with the main topics covered.`;
 
     return this.generateText(prompt);
+  }
+
+  // ── FIX 1: renamed extractTextFromTiptap → extractText (already exists above)
+  // ── FIX 2: BadRequestException added to imports at top
+  async simplify(userId: string, docId: string): Promise<string> {
+    const doc = await this.prisma.document.findUnique({
+      where: { id: docId },
+      include: {
+        workspace: {
+          include: { membres: { where: { utilisateurId: userId } } },
+        },
+      },
+    });
+    if (!doc) throw new NotFoundException('Document not found.');
+    if (!doc.workspace.membres.length)
+      throw new ForbiddenException('Access denied.');
+
+    const rawText = this.extractText(doc.contenu);
+    if (!rawText || rawText.trim().length < 30) {
+      throw new BadRequestException('Document is too short to simplify.');
+    }
+
+    const prompt = `You are a language simplification expert. Your task is to rewrite the following document in plain, accessible language that anyone can understand.
+
+Rules:
+- Replace all jargon and technical terms with simple everyday words
+- Break long sentences into short, clear ones
+- Keep the same structure and meaning — just simplify the language
+- Do NOT add new information or opinions
+- Write in the same language as the original text
+- Output only the simplified text, no commentary, no preamble
+
+Document to simplify:
+---
+${rawText.slice(0, 6000)}
+---
+
+Simplified version:`;
+
+    return this.generateText(prompt);
+  }
+
+  // ── FIX 3: createurId → authorId  (matches documents.service.ts and your schema)
+  // ── FIX 4: indexDocument() takes 1 arg — removed the extra tiptapContent arg
+  async generateDocument(
+    userId: string,
+    workspaceId: string,
+    description: string,
+    titre: string,
+    dossierId?: string,
+  ): Promise<{ documentId: string; content: any }> {
+    const membre = await this.prisma.membreWorkspace.findUnique({
+      where: {
+        utilisateurId_workspaceId: { utilisateurId: userId, workspaceId },
+      },
+    });
+    if (!membre) throw new ForbiddenException('Access denied.');
+    if (membre.role === 'LECTEUR')
+      throw new ForbiddenException('Read-only access.');
+
+    const prompt = `You are a professional document writer. Generate a complete, well-structured document based on the following description.
+
+Output ONLY valid JSON in TipTap editor format. No explanation, no markdown fences, no extra text — just the raw JSON object.
+
+The TipTap JSON format is:
+{
+  "type": "doc",
+  "content": [
+    { "type": "heading", "attrs": { "level": 1 }, "content": [{ "type": "text", "text": "Title Here" }] },
+    { "type": "paragraph", "content": [{ "type": "text", "text": "Paragraph text here." }] },
+    { "type": "heading", "attrs": { "level": 2 }, "content": [{ "type": "text", "text": "Section Title" }] },
+    { "type": "bulletList", "content": [
+      { "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Item" }] }] }
+    ]}
+  ]
+}
+
+Document title: "${titre}"
+Description: "${description}"
+
+Generate a comprehensive, professional document with at least 4-6 sections. Write in the same language as the description.
+
+Output only the JSON:`;
+
+    let rawResponse = await this.generateText(prompt);
+
+    rawResponse = rawResponse
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```\s*$/i, '')
+      .trim();
+
+    let tiptapContent: any;
+    try {
+      tiptapContent = JSON.parse(rawResponse);
+    } catch {
+      tiptapContent = {
+        type: 'doc',
+        content: [
+          {
+            type: 'heading',
+            attrs: { level: 1 },
+            content: [{ type: 'text', text: titre }],
+          },
+          ...rawResponse
+            .split('\n\n')
+            .filter(Boolean)
+            .map((para: string) => ({
+              type: 'paragraph',
+              content: [{ type: 'text', text: para.trim() }],
+            })),
+        ],
+      };
+    }
+
+    const newDoc = await this.prisma.document.create({
+      data: {
+        titre,
+        contenu: tiptapContent,
+        workspaceId,
+        dossierId: dossierId ?? null,
+        authorId: userId, // ← FIX 3: was createurId
+      },
+    });
+
+    this.indexDocument(newDoc.id).catch(() => {}); // ← FIX 4: 1 arg only
+
+    return { documentId: newDoc.id, content: tiptapContent };
   }
 }

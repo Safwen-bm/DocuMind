@@ -51,6 +51,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ShareModal } from "./_components/ShareModal";
+import { Share2 } from "lucide-react";
 
 export default function DocumentEditorPage() {
   const params = useParams();
@@ -62,7 +64,9 @@ export default function DocumentEditorPage() {
   const t = useTranslations("dashboard.editor");
 
   // ── Export state ───────────────────────────────────────────────────────────
-  const [isExporting, setIsExporting] = useState<"pdf" | "docx" | "excel" | null>(null);
+  const [isExporting, setIsExporting] = useState<
+    "pdf" | "docx" | "excel" | null
+  >(null);
 
   // ── Mode ───────────────────────────────────────────────────────────────────
   const [isEditing, setIsEditing] = useState(false);
@@ -76,6 +80,7 @@ export default function DocumentEditorPage() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const currentContentRef = useRef<any>(null);
   const isLoadedRef = useRef(false);
@@ -105,8 +110,11 @@ export default function DocumentEditorPage() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: (data: { titre?: string; contenu?: any; estFavori?: boolean }) =>
-      documentApi.update(docId, data),
+    mutationFn: (data: {
+      titre?: string;
+      contenu?: any;
+      estFavori?: boolean;
+    }) => documentApi.update(docId, data),
     onSuccess: () => {
       setHasUnsavedChanges(false);
       setLastSaved(new Date());
@@ -174,7 +182,9 @@ export default function DocumentEditorPage() {
         editor.commands.setContent(doc.contenu);
         currentContentRef.current = doc.contenu;
       }
-      setTimeout(() => { isLoadedRef.current = true; }, 200);
+      setTimeout(() => {
+        isLoadedRef.current = true;
+      }, 200);
     }
   }, [doc, editor]);
 
@@ -185,12 +195,17 @@ export default function DocumentEditorPage() {
         silentSyncMutation.mutate(currentContentRef.current);
       }
     }, 10000);
-    return () => { if (autoSyncTimer.current) clearInterval(autoSyncTimer.current); };
+    return () => {
+      if (autoSyncTimer.current) clearInterval(autoSyncTimer.current);
+    };
   }, [hasUnsavedChanges, isEditing]);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) { e.preventDefault(); e.returnValue = ""; }
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
@@ -293,7 +308,7 @@ export default function DocumentEditorPage() {
       <div
         className={cn(
           "flex h-full flex-col transition-all duration-300",
-          aiPanelOpen ? "mr-[420px]" : "mr-0"
+          aiPanelOpen ? "mr-[420px]" : "mr-0",
         )}
       >
         {/* ── Top bar ─────────────────────────────────────────────────────── */}
@@ -328,12 +343,30 @@ export default function DocumentEditorPage() {
             {isEditing && (
               <span className="text-xs text-muted-foreground hidden sm:block">
                 {hasUnsavedChanges ? (
-                  <span className="text-yellow-500 font-medium">{t("unsaved")}</span>
+                  <span className="text-yellow-500 font-medium">
+                    {t("unsaved")}
+                  </span>
                 ) : lastSaved ? (
-                  t("saved", { time: formatDistanceToNow(lastSaved, { addSuffix: true }) })
+                  t("saved", {
+                    time: formatDistanceToNow(lastSaved, { addSuffix: true }),
+                  })
                 ) : null}
               </span>
             )}
+
+            {/* ── Share button ── */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setShareOpen(true)}
+                  className="flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <Share2 className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{t("share")}</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{t("share")}</TooltipContent>
+            </Tooltip>
 
             {/* ── AI Assistant button ── */}
             <Tooltip>
@@ -344,14 +377,16 @@ export default function DocumentEditorPage() {
                     "flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-all",
                     aiPanelOpen
                       ? "bg-primary text-primary-foreground"
-                      : "border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
+                      : "border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10",
                   )}
                 >
                   <Sparkles className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">{t("askAi")}</span>
                 </button>
               </TooltipTrigger>
-              <TooltipContent>{aiPanelOpen ? t("closeAi") : t("openAi")}</TooltipContent>
+              <TooltipContent>
+                {aiPanelOpen ? t("closeAi") : t("openAi")}
+              </TooltipContent>
             </Tooltip>
 
             {/* Export / Download */}
@@ -411,7 +446,9 @@ export default function DocumentEditorPage() {
                     isFavori ? "text-yellow-500" : "text-muted-foreground",
                   )}
                 >
-                  <Star className={cn("h-4 w-4", isFavori && "fill-yellow-500")} />
+                  <Star
+                    className={cn("h-4 w-4", isFavori && "fill-yellow-500")}
+                  />
                 </button>
               </TooltipTrigger>
               <TooltipContent>
@@ -512,6 +549,13 @@ export default function DocumentEditorPage() {
         docId={docId}
         docTitle={title}
         mode="document"
+      />
+
+      <ShareModal
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        documentId={docId}
+        documentTitle={title}
       />
     </TooltipProvider>
   );

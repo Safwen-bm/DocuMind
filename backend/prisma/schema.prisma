@@ -26,6 +26,7 @@ model Utilisateur {
   activites     Activite[]
   notifications Notification[]
   conversations Conversation[]
+  shareTokens   ShareToken[]
 
   @@map("utilisateurs")
 }
@@ -139,6 +140,7 @@ model Document {
   dossier       Dossier?          @relation(fields: [dossierId], references: [id], onDelete: Cascade)
   author        Utilisateur       @relation(fields: [authorId], references: [id])
   versions      VersionDocument[]
+  shareTokens   ShareToken[]
 
   @@map("documents")
 }
@@ -158,12 +160,12 @@ model VersionDocument {
 }
 
 model DocumentChunk {
-  id           String                     @id @default(uuid())
+  id           String                      @id @default(uuid())
   documentId   String
   contenu      String
   embedding    Unsupported("vector(3072)")
   chunkIndex   Int
-  dateCreation DateTime                   @default(now())
+  dateCreation DateTime                    @default(now())
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
@@ -176,14 +178,14 @@ model Conversation {
   id            String   @id @default(uuid())
   utilisateurId String
   workspaceId   String
-  documentId    String?  // null = workspace-wide, set = document-scoped
+  documentId    String? // null = workspace-wide, set = document-scoped
   titre         String   @default("New conversation")
   dateCreation  DateTime @default(now())
   dateMiseAJour DateTime @updatedAt
 
-  utilisateur Utilisateur  @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
-  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  document    Document?    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  document    Document?   @relation(fields: [documentId], references: [id], onDelete: Cascade)
   messages    MessageIA[]
 
   @@map("conversations")
@@ -194,7 +196,7 @@ model MessageIA {
   conversationId String
   role           RoleIA
   contenu        String
-  sources        Json?    // [{documentId, titre, excerpt}] — only on assistant messages
+  sources        Json? // [{documentId, titre, excerpt}] — only on assistant messages
   dateCreation   DateTime @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -258,4 +260,24 @@ enum NotificationType {
   DOCUMENT_PARTAGE
   MEMBRE_REJOINT
   SYSTEME
+}
+
+model ShareToken {
+  id           String          @id @default(uuid())
+  token        String          @unique
+  documentId   String
+  createdById  String
+  permission   SharePermission @default(READ)
+  expiresAt    DateTime?
+  dateCreation DateTime        @default(now())
+
+  document  Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdBy Utilisateur @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@map("share_tokens")
+}
+
+enum SharePermission {
+  READ
+  EDIT
 }

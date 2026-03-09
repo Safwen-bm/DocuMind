@@ -6,21 +6,24 @@ const intlMiddleware = createMiddleware(routing)
 
 const protectedRoutes = ['/dashboard', '/workspace', '/invitations', '/profile', '/documents']
 const authRoutes = ['/login', '/register', '/verify-otp', '/forgot-password', '/reset-password']
+// /share is intentionally PUBLIC — no token needed
 
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const token = request.cookies.get('access_token')?.value
 
-  // Strip locale prefix to check route type
   const pathnameWithoutLocale = pathname.replace(/^\/(en|fr|ar)/, '') || '/'
 
-  // If protected route and no token → redirect to login
+  // /share/* — always public, skip all checks
+  if (pathnameWithoutLocale.startsWith('/share')) {
+    return intlMiddleware(request)
+  }
+
   if (protectedRoutes.some(r => pathnameWithoutLocale.startsWith(r)) && !token) {
     const locale = pathname.split('/')[1] || 'en'
     return NextResponse.redirect(new URL(`/${locale}/login`, request.url))
   }
 
-  // If auth route and has token → redirect to dashboard
   if (authRoutes.some(r => pathnameWithoutLocale.startsWith(r)) && token) {
     const locale = pathname.split('/')[1] || 'en'
     return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url))

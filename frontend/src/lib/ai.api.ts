@@ -49,6 +49,21 @@ export const aiApi = {
   summarize: (docId: string): Promise<string> =>
     api.post(`/ai/summarize/${docId}`).then((r) => r.data),
 
+  // ── Simplify a document ───────────────────────────────────────────────────
+  simplify: (docId: string): Promise<string> =>
+    api.post(`/ai/simplify/${docId}`).then((r) => r.data),
+
+  // ── Generate a document from description ─────────────────────────────────
+  generateDocument: (
+    workspaceId: string,
+    titre: string,
+    description: string,
+    dossierId?: string,
+  ): Promise<{ documentId: string; content: any }> =>
+    api
+      .post("/ai/generate", { workspaceId, titre, description, dossierId })
+      .then((r) => r.data),
+
   // ── Reindex all docs in a workspace ──────────────────────────────────────
   reindex: (workspaceId: string): Promise<{ indexed: number }> =>
     api.post(`/ai/reindex/${workspaceId}`).then((r) => r.data),
