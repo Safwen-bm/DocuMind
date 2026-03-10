@@ -251,6 +251,12 @@
         "expand": "Expand"
       }
     },
+    "notifications": {
+      "title": "Notifications",
+      "allCaughtUp": "All caught up!",
+      "noNotifications": "No notifications yet.",
+      "markAllRead": "Mark all read"
+    },
     "workspace": {
       "overviewNav": "Overview",
       "membersNav": "Members",
@@ -453,6 +459,9 @@
       "textColor": "Text color",
       "highlightColor": "Highlight color",
       "share": "Share",
+      "comments": "Comments",
+      "openComments": "Open comments",
+      "closeComments": "Close comments",
       "versionHistoryPanel": {
         "title": "Version History",
         "noVersions": "No versions yet",
@@ -585,6 +594,25 @@
       "aiBadge": "AI",
       "aiBothBadge": "AI + text",
       "shortcut": "Ctrl+K"
+    },
+    "comments": {
+      "title": "Comments",
+      "open": "open",
+      "resolvedCount": "resolved",
+      "all": "All",
+      "open_filter": "Open",
+      "resolved": "Resolved",
+      "emptyAll": "No comments yet",
+      "emptyAllDesc": "Be the first to leave a comment on this document.",
+      "emptyOpen": "No open comments",
+      "emptyResolved": "No resolved comments",
+      "inputPlaceholder": "Write a comment… (Enter to send)",
+      "hint": "Enter to send · Shift+Enter for a new line",
+      "resolve": "Mark as resolved",
+      "unresolve": "Reopen",
+      "edit": "Edit",
+      "delete": "Delete",
+      "resolvedBadge": "Resolved"
     }
   },
   "profile": {

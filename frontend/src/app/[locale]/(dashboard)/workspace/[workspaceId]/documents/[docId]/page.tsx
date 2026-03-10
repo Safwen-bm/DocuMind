@@ -16,6 +16,8 @@ import Placeholder from "@tiptap/extension-placeholder";
 import Image from "@tiptap/extension-image";
 import { documentApi } from "@/lib/document.api";
 import { workspaceApi } from "@/lib/workspace.api";
+import { useAuthStore } from "@/store/auth.store";
+import { commentsApi } from "@/lib/comments.api";
 import { Document, Workspace } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +35,12 @@ import {
   Pencil,
   Eye,
   Sparkles,
+  MessageSquare,
+  Download,
+  FileText,
+  FileDown,
+  FileSpreadsheet,
+  Share2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -40,19 +48,18 @@ import { useTranslations } from "next-intl";
 import { EditorToolbar } from "./_components/EditorToolbar";
 import { VersionHistory } from "./_components/VersionHistory";
 import { AiChatPanel } from "./_components/AiChatPanel";
+import { CommentsPanel } from "./_components/CommentsPanel";
+import { ShareModal } from "./_components/ShareModal";
 import { Table } from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
-import { Download, FileText, FileDown, FileSpreadsheet } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ShareModal } from "./_components/ShareModal";
-import { Share2 } from "lucide-react";
 
 export default function DocumentEditorPage() {
   const params = useParams();
@@ -63,6 +70,9 @@ export default function DocumentEditorPage() {
   const queryClient = useQueryClient();
   const t = useTranslations("dashboard.editor");
 
+  // Current user (needed by CommentsPanel to know who is editing)
+  const { user } = useAuthStore();
+
   // ── Export state ───────────────────────────────────────────────────────────
   const [isExporting, setIsExporting] = useState<
     "pdf" | "docx" | "excel" | null
@@ -71,8 +81,9 @@ export default function DocumentEditorPage() {
   // ── Mode ───────────────────────────────────────────────────────────────────
   const [isEditing, setIsEditing] = useState(false);
 
-  // ── AI Panel ───────────────────────────────────────────────────────────────
+  // ── Panel state — only one panel open at a time ────────────────────────────
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [title, setTitle] = useState("");
@@ -99,6 +110,14 @@ export default function DocumentEditorPage() {
     queryKey: ["workspace", workspaceId],
     queryFn: () => workspaceApi.getOne(workspaceId),
   });
+
+  // Count of unresolved comments — shown as badge on the Comments button
+  const { data: allComments = [] } = useQuery({
+    queryKey: ["comments", docId],
+    queryFn: () => commentsApi.getAll(docId),
+    staleTime: 30000,
+  });
+  const openCommentsCount = allComments.filter((c) => !c.estResolu).length;
 
   const canEdit = workspace
     ? ["EDITEUR", "ADMINISTRATEUR", "PROPRIETAIRE"].includes(workspace.monRole)
@@ -292,6 +311,21 @@ export default function DocumentEditorPage() {
     }
   }
 
+  // Only one panel open at a time
+  function toggleAiPanel() {
+    setAiPanelOpen((v) => {
+      if (!v) setCommentsPanelOpen(false);
+      return !v;
+    });
+  }
+
+  function toggleCommentsPanel() {
+    setCommentsPanelOpen((v) => {
+      if (!v) setAiPanelOpen(false);
+      return !v;
+    });
+  }
+
   // ── Loading screen ─────────────────────────────────────────────────────────
   if (isLoading || !editor) {
     return (
@@ -301,14 +335,15 @@ export default function DocumentEditorPage() {
     );
   }
 
+  const anyPanelOpen = aiPanelOpen || commentsPanelOpen;
+
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <TooltipProvider delayDuration={300}>
-      {/* Outer container — shifts left when AI panel is open */}
       <div
         className={cn(
           "flex h-full flex-col transition-all duration-300",
-          aiPanelOpen ? "mr-[420px]" : "mr-0",
+          anyPanelOpen ? "mr-[420px]" : "mr-0",
         )}
       >
         {/* ── Top bar ─────────────────────────────────────────────────────── */}
@@ -354,7 +389,7 @@ export default function DocumentEditorPage() {
               </span>
             )}
 
-            {/* ── Share button ── */}
+            {/* Share */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -368,11 +403,44 @@ export default function DocumentEditorPage() {
               <TooltipContent>{t("share")}</TooltipContent>
             </Tooltip>
 
-            {/* ── AI Assistant button ── */}
+            {/* ── Comments button with unresolved count badge ── */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
-                  onClick={() => setAiPanelOpen((v) => !v)}
+                  onClick={toggleCommentsPanel}
+                  className={cn(
+                    "relative flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-all",
+                    commentsPanelOpen
+                      ? "bg-orange-500 text-white"
+                      : "border border-orange-400/30 bg-orange-500/5 text-orange-500 hover:bg-orange-500/10",
+                  )}
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{t("comments")}</span>
+                  {openCommentsCount > 0 && (
+                    <span
+                      className={cn(
+                        "flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold",
+                        commentsPanelOpen
+                          ? "bg-white text-orange-500"
+                          : "bg-orange-500 text-white",
+                      )}
+                    >
+                      {openCommentsCount > 99 ? "99+" : openCommentsCount}
+                    </span>
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {commentsPanelOpen ? t("closeComments") : t("openComments")}
+              </TooltipContent>
+            </Tooltip>
+
+            {/* AI Assistant */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={toggleAiPanel}
                   className={cn(
                     "flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-all",
                     aiPanelOpen
@@ -389,7 +457,7 @@ export default function DocumentEditorPage() {
               </TooltipContent>
             </Tooltip>
 
-            {/* Export / Download */}
+            {/* Export */}
             <DropdownMenu>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -488,7 +556,6 @@ export default function DocumentEditorPage() {
                     {saveMutation.isPending ? t("saving") : t("save")}
                   </span>
                 </Button>
-
                 <Button size="sm" className="gap-1.5" onClick={handleExitEdit}>
                   <Eye className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">{t("doneEditing")}</span>
@@ -541,7 +608,7 @@ export default function DocumentEditorPage() {
         />
       </div>
 
-      {/* ── AI Chat Panel — fixed on right, slides in ────────────────────── */}
+      {/* ── AI Chat Panel ────────────────────────────────────────────────── */}
       <AiChatPanel
         open={aiPanelOpen}
         onClose={() => setAiPanelOpen(false)}
@@ -549,6 +616,15 @@ export default function DocumentEditorPage() {
         docId={docId}
         docTitle={title}
         mode="document"
+      />
+
+      {/* ── Comments Panel ───────────────────────────────────────────────── */}
+      <CommentsPanel
+        open={commentsPanelOpen}
+        onClose={() => setCommentsPanelOpen(false)}
+        documentId={docId}
+        currentUserId={user?.id ?? ""}
+        currentUserRole={workspace?.monRole ?? "LECTEUR"}
       />
 
       <ShareModal

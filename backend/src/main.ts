@@ -5,9 +5,13 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  
+
+  // Increase body size limit to 10mb — TipTap JSON can get large with images/tables
+  app.use(require('express').json({ limit: '10mb' }));
+  app.use(require('express').urlencoded({ extended: true, limit: '10mb' }));
+
   app.enableCors({
-    origin: 'http://localhost:3001',
+    origin: process.env.FRONTEND_URL || 'http://localhost:3001',
     credentials: true,
   });
 

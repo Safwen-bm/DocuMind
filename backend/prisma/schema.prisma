@@ -27,6 +27,7 @@ model Utilisateur {
   notifications Notification[]
   conversations Conversation[]
   shareTokens   ShareToken[]
+  commentaires  Commentaire[]       // ← new
 
   @@map("utilisateurs")
 }
@@ -141,6 +142,7 @@ model Document {
   author        Utilisateur       @relation(fields: [authorId], references: [id])
   versions      VersionDocument[]
   shareTokens   ShareToken[]
+  commentaires  Commentaire[]     // ← new
 
   @@map("documents")
 }
@@ -172,13 +174,30 @@ model DocumentChunk {
   @@map("document_chunks")
 }
 
+// ── Comments ──────────────────────────────────────────────────────────────────
+
+model Commentaire {
+  id            String   @id @default(uuid())
+  contenu       String
+  documentId    String
+  auteurId      String
+  estResolu     Boolean  @default(false)
+  dateCreation  DateTime @default(now())
+  dateMiseAJour DateTime @updatedAt
+
+  document Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  auteur   Utilisateur @relation(fields: [auteurId], references: [id], onDelete: Cascade)
+
+  @@map("commentaires")
+}
+
 // ── AI Conversations ──────────────────────────────────────────────────────────
 
 model Conversation {
   id            String   @id @default(uuid())
   utilisateurId String
   workspaceId   String
-  documentId    String? // null = workspace-wide, set = document-scoped
+  documentId    String?
   titre         String   @default("New conversation")
   dateCreation  DateTime @default(now())
   dateMiseAJour DateTime @updatedAt
@@ -196,7 +215,7 @@ model MessageIA {
   conversationId String
   role           RoleIA
   contenu        String
-  sources        Json? // [{documentId, titre, excerpt}] — only on assistant messages
+  sources        Json?
   dateCreation   DateTime @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -256,9 +275,14 @@ model Notification {
 
 enum NotificationType {
   INVITATION
-  MENTION
+  MENTION            // @mention dans un commentaire
   DOCUMENT_PARTAGE
   MEMBRE_REJOINT
+  COMMENTAIRE        // nouveau commentaire sur ton doc
+  NOUVEAU_DOCUMENT   // ← nouveau doc créé dans le workspace
+  DOCUMENT_MODIFIE   // ← doc modifié par un membre
+  ROLE_MODIFIE       // ← ton rôle a été changé
+  MEMBRE_RETIRE      // ← tu as été retiré du workspace
   SYSTEME
 }
 

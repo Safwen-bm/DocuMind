@@ -1,8 +1,23 @@
+// src/components/dashboard/notification-bell.tsx
 "use client";
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bell, Check, CheckCheck, FileText, Users, Info } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
+import {
+  Bell,
+  CheckCheck,
+  FileText,
+  Users,
+  Info,
+  MessageSquare,
+  FilePlus,
+  FileEdit,
+  UserX,
+  ShieldCheck,
+  AtSign,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -10,33 +25,93 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { notificationApi } from "@/lib/notification.api";
-import { Notification, NotificationType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
+import { fr, ar, enUS } from "date-fns/locale";
 
-function getNotifIcon(type: NotificationType) {
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+type NotificationType =
+  | "INVITATION"
+  | "MENTION"
+  | "DOCUMENT_PARTAGE"
+  | "MEMBRE_REJOINT"
+  | "COMMENTAIRE"
+  | "NOUVEAU_DOCUMENT"
+  | "DOCUMENT_MODIFIE"
+  | "ROLE_MODIFIE"
+  | "MEMBRE_RETIRE"
+  | "SYSTEME";
+
+interface Notification {
+  id: string;
+  type: NotificationType;
+  message: string;
+  lu: boolean;
+  lien: string | null;
+  dateCreation: string;
+  workspaceId: string | null;
+}
+
+// ── Icon + color per type ──────────────────────────────────────────────────────
+
+function getNotifStyle(type: NotificationType) {
   switch (type) {
     case "INVITATION":
-      return Users;
-    case "DOCUMENT_PARTAGE":
-      return FileText;
+      return { Icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" };
     case "MEMBRE_REJOINT":
-      return Users;
+      return { Icon: Users, color: "text-green-500", bg: "bg-green-500/10" };
+    case "MENTION":
+      return { Icon: AtSign, color: "text-violet-500", bg: "bg-violet-500/10" };
+    case "COMMENTAIRE":
+      return {
+        Icon: MessageSquare,
+        color: "text-orange-500",
+        bg: "bg-orange-500/10",
+      };
+    case "NOUVEAU_DOCUMENT":
+      return { Icon: FilePlus, color: "text-primary", bg: "bg-primary/10" };
+    case "DOCUMENT_MODIFIE":
+      return { Icon: FileEdit, color: "text-amber-500", bg: "bg-amber-500/10" };
+    case "DOCUMENT_PARTAGE":
+      return { Icon: FileText, color: "text-cyan-500", bg: "bg-cyan-500/10" };
+    case "ROLE_MODIFIE":
+      return {
+        Icon: ShieldCheck,
+        color: "text-indigo-500",
+        bg: "bg-indigo-500/10",
+      };
+    case "MEMBRE_RETIRE":
+      return { Icon: UserX, color: "text-red-500", bg: "bg-red-500/10" };
     default:
-      return Info;
+      return { Icon: Info, color: "text-muted-foreground", bg: "bg-muted" };
   }
 }
+
+function getDateLocale(locale: string) {
+  if (locale === "fr") return fr;
+  if (locale === "ar") return ar;
+  return enUS;
+}
+
+// ── Component ──────────────────────────────────────────────────────────────────
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const locale = useLocale();
+  const t = useTranslations("dashboard.notifications");
+  const dateLocale = getDateLocale(locale);
 
+  // Poll unread count every 30s — lightweight, always runs in background
   const { data: countData } = useQuery({
     queryKey: ["notifications-count"],
     queryFn: notificationApi.getUnreadCount,
-    refetchInterval: 30000, // poll every 30s
+    refetchInterval: 30000,
   });
 
+  // Full list only when popover is open — avoids unnecessary requests
   const { data: notifications } = useQuery<Notification[]>({
     queryKey: ["notifications"],
     queryFn: notificationApi.getAll,
@@ -44,7 +119,7 @@ export function NotificationBell() {
   });
 
   const markReadMutation = useMutation({
-    mutationFn: notificationApi.markRead,
+    mutationFn: (id: string) => notificationApi.markRead(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["notifications-count"] });
@@ -60,6 +135,16 @@ export function NotificationBell() {
   });
 
   const unreadCount = countData?.count ?? 0;
+
+  function handleNotifClick(notif: Notification) {
+    // Mark as read immediately
+    if (!notif.lu) markReadMutation.mutate(notif.id);
+    // Navigate to the relevant page if a link exists
+    if (notif.lien) {
+      setOpen(false);
+      router.push(`/${locale}${notif.lien}`);
+    }
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -80,10 +165,10 @@ export function NotificationBell() {
           <div className="flex items-center gap-2">
             <Bell className="h-4 w-4 text-primary" />
             <span className="text-sm font-semibold text-foreground">
-              Notifications
+              {t("title")}
             </span>
             {unreadCount > 0 && (
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500/10 text-[11px] font-semibold text-red-500">
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500/10 px-1 text-[11px] font-semibold text-red-500">
                 {unreadCount}
               </span>
             )}
@@ -97,57 +182,58 @@ export function NotificationBell() {
               disabled={markAllMutation.isPending}
             >
               <CheckCheck className="h-3.5 w-3.5" />
-              Mark all read
+              {t("markAllRead")}
             </Button>
           )}
         </div>
 
         {/* List */}
-        <div className="max-h-80 overflow-y-auto">
+        <div className="max-h-[420px] overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
           {!notifications || notifications.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center">
+            <div className="flex flex-col items-center justify-center py-12 text-center">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted mb-3">
-                <Bell className="h-5 w-5 text-muted-foreground" />
+                <Bell className="h-5 w-5 text-muted-foreground/50" />
               </div>
               <p className="text-sm font-medium text-foreground">
-                All caught up!
+                {t("allCaughtUp")}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                No notifications yet.
+                {t("noNotifications")}
               </p>
             </div>
           ) : (
             <div className="divide-y divide-border">
               {notifications.map((notif) => {
-                const Icon = getNotifIcon(notif.type);
+                const { Icon, color, bg } = getNotifStyle(notif.type);
+                const isClickable = !!notif.lien;
+
                 return (
                   <div
                     key={notif.id}
+                    onClick={() => handleNotifClick(notif)}
                     className={cn(
-                      "flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/40 cursor-pointer",
+                      "flex items-start gap-3 px-4 py-3 transition-colors",
                       !notif.lu && "bg-primary/5",
+                      isClickable
+                        ? "cursor-pointer hover:bg-muted/50"
+                        : "cursor-default",
                     )}
-                    onClick={() => {
-                      if (!notif.lu) markReadMutation.mutate(notif.id);
-                    }}
                   >
+                    {/* Colored icon */}
                     <div
                       className={cn(
-                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-                        !notif.lu ? "bg-primary/10" : "bg-muted",
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full mt-0.5",
+                        bg,
                       )}
                     >
-                      <Icon
-                        className={cn(
-                          "h-4 w-4",
-                          !notif.lu ? "text-primary" : "text-muted-foreground",
-                        )}
-                      />
+                      <Icon className={cn("h-4 w-4", color)} />
                     </div>
+
+                    {/* Message + date */}
                     <div className="min-w-0 flex-1">
                       <p
                         className={cn(
-                          "text-sm leading-snug",
+                          "text-xs leading-snug",
                           !notif.lu
                             ? "font-medium text-foreground"
                             : "text-muted-foreground",
@@ -155,14 +241,17 @@ export function NotificationBell() {
                       >
                         {notif.message}
                       </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
+                      <p className="mt-1 text-[10px] text-muted-foreground">
                         {formatDistanceToNow(new Date(notif.dateCreation), {
                           addSuffix: true,
+                          locale: dateLocale,
                         })}
                       </p>
                     </div>
+
+                    {/* Unread dot */}
                     {!notif.lu && (
-                      <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                      <div className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" />
                     )}
                   </div>
                 );

@@ -1,4 +1,4 @@
-//C:\Users\MSI\Desktop\Projet\pfe-project\backend\src\documents\documents.service.ts
+// src/documents/documents.service.ts
 
 import {
   Injectable,
@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActiviteService } from '../activite/activite.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { ActionType, Prisma, Role } from '@prisma/client';
@@ -18,7 +19,37 @@ export class DocumentsService {
     private prisma: PrismaService,
     private activite: ActiviteService,
     private aiService: AiService,
+    private notifications: NotificationsService, // ← inject NotificationsService
   ) {}
+
+  // ── Helper: notify all workspace members except one user ──────────────────
+  private async notifyWorkspaceMembers(
+    workspaceId: string,
+    excludeUserId: string,
+    type: any,
+    message: string,
+    lien: string,
+  ) {
+    const membres = await this.prisma.membreWorkspace.findMany({
+      where: { workspaceId },
+      select: { utilisateurId: true },
+    });
+
+    // Fire-and-forget — don't block the main response
+    Promise.all(
+      membres
+        .filter((m) => m.utilisateurId !== excludeUserId)
+        .map((m) =>
+          this.notifications.create({
+            userId: m.utilisateurId,
+            type,
+            message,
+            workspaceId,
+            lien,
+          }),
+        ),
+    ).catch(console.error);
+  }
 
   async create(userId: string, workspaceId: string, dto: CreateDocumentDto) {
     await this.checkRole(userId, workspaceId, [
@@ -48,6 +79,15 @@ export class DocumentsService {
       cible: doc.titre,
       cibleId: doc.id,
     });
+
+    // ── Notify all workspace members that a new document was created ──────────
+    await this.notifyWorkspaceMembers(
+      workspaceId,
+      userId,
+      'NOUVEAU_DOCUMENT',
+      `${doc.author.nom} a créé un nouveau document "${doc.titre}".`,
+      `/workspace/${workspaceId}/documents/${doc.id}`,
+    );
 
     return doc;
   }
@@ -88,6 +128,9 @@ export class DocumentsService {
   async update(userId: string, documentId: string, dto: UpdateDocumentDto) {
     const doc = await this.prisma.document.findUnique({
       where: { id: documentId },
+      include: {
+        author: { select: { id: true, nom: true } },
+      },
     });
     if (!doc) throw new NotFoundException('Document introuvable.');
 
@@ -104,7 +147,6 @@ export class DocumentsService {
         orderBy: { numero: 'desc' },
       });
 
-      // Snapshot the OLD content before overwriting
       await this.prisma.versionDocument.create({
         data: {
           documentId,
@@ -149,8 +191,23 @@ export class DocumentsService {
       });
     }
 
+    // ── Notify workspace members of the save (content change only) ────────────
     if (dto.contenu !== undefined) {
       this.aiService.indexDocument(updated.id).catch(console.error);
+
+      // Get the editor's name for the notification message
+      const editor = await this.prisma.utilisateur.findUnique({
+        where: { id: userId },
+        select: { nom: true },
+      });
+
+      await this.notifyWorkspaceMembers(
+        doc.workspaceId,
+        userId,
+        'DOCUMENT_MODIFIE',
+        `${editor?.nom ?? 'Un membre'} a modifié le document "${doc.titre}".`,
+        `/workspace/${doc.workspaceId}/documents/${documentId}`,
+      );
     }
 
     return updated;
@@ -214,7 +271,6 @@ export class DocumentsService {
     });
     if (!version) throw new NotFoundException('Version introuvable.');
 
-    // Save current as new version before restoring
     const lastVersion = await this.prisma.versionDocument.findFirst({
       where: { documentId },
       orderBy: { numero: 'desc' },
@@ -315,6 +371,64 @@ export class DocumentsService {
     return { totalDocuments, totalFavoris };
   }
 
+  async updateSilent(
+    userId: string,
+    documentId: string,
+    data: { titre?: string; contenu?: any },
+  ) {
+    const doc = await this.prisma.document.findUnique({
+      where: { id: documentId },
+    });
+    if (!doc) throw new NotFoundException('Document introuvable.');
+    await this.checkRole(userId, doc.workspaceId, [
+      Role.EDITEUR,
+      Role.ADMINISTRATEUR,
+      Role.PROPRIETAIRE,
+    ]);
+
+    // Silent update — no notification, no version snapshot, no activity log
+    return this.prisma.document.update({
+      where: { id: documentId },
+      data: {
+        ...(data.titre !== undefined && { titre: data.titre }),
+        ...(data.contenu !== undefined && { contenu: data.contenu }),
+      },
+    });
+  }
+
+  async moveDocument(
+    userId: string,
+    documentId: string,
+    dossierId: string | null,
+  ) {
+    const doc = await this.prisma.document.findUnique({
+      where: { id: documentId },
+    });
+    if (!doc) throw new NotFoundException('Document introuvable.');
+
+    await this.checkRole(userId, doc.workspaceId, [
+      Role.EDITEUR,
+      Role.ADMINISTRATEUR,
+      Role.PROPRIETAIRE,
+    ]);
+
+    if (dossierId) {
+      const dossier = await this.prisma.dossier.findFirst({
+        where: { id: dossierId, workspaceId: doc.workspaceId },
+      });
+      if (!dossier) throw new NotFoundException('Dossier introuvable.');
+    }
+
+    return this.prisma.document.update({
+      where: { id: documentId },
+      data: { dossierId: dossierId ?? null },
+      include: {
+        author: { select: { id: true, nom: true, avatarUrl: true } },
+        dossier: { select: { id: true, nom: true } },
+      },
+    });
+  }
+
   private async checkMember(userId: string, workspaceId: string) {
     const membre = await this.prisma.membreWorkspace.findUnique({
       where: {
@@ -337,65 +451,5 @@ export class DocumentsService {
       (r) => hierarchy.indexOf(membre.role) >= hierarchy.indexOf(r),
     );
     if (!hasRole) throw new ForbiddenException('Permission insuffisante.');
-  }
-
-  async updateSilent(
-    userId: string,
-    documentId: string,
-    data: { titre?: string; contenu?: any },
-  ) {
-    const doc = await this.prisma.document.findUnique({
-      where: { id: documentId },
-    });
-    if (!doc) throw new NotFoundException('Document introuvable.');
-    await this.checkRole(userId, doc.workspaceId, [
-      Role.EDITEUR,
-      Role.ADMINISTRATEUR,
-      Role.PROPRIETAIRE,
-    ]);
-
-    return this.prisma.document.update({
-      where: { id: documentId },
-      data: {
-        ...(data.titre !== undefined && { titre: data.titre }),
-        ...(data.contenu !== undefined && { contenu: data.contenu }),
-      },
-    });
-  }
-
-  // Add this method to DocumentsService in documents.service.ts
-
-  async moveDocument(
-    userId: string,
-    documentId: string,
-    dossierId: string | null,
-  ) {
-    const doc = await this.prisma.document.findUnique({
-      where: { id: documentId },
-    });
-    if (!doc) throw new NotFoundException('Document introuvable.');
-
-    await this.checkRole(userId, doc.workspaceId, [
-      Role.EDITEUR,
-      Role.ADMINISTRATEUR,
-      Role.PROPRIETAIRE,
-    ]);
-
-    // If dossierId provided, validate it belongs to same workspace
-    if (dossierId) {
-      const dossier = await this.prisma.dossier.findFirst({
-        where: { id: dossierId, workspaceId: doc.workspaceId },
-      });
-      if (!dossier) throw new NotFoundException('Dossier introuvable.');
-    }
-
-    return this.prisma.document.update({
-      where: { id: documentId },
-      data: { dossierId: dossierId ?? null },
-      include: {
-        author: { select: { id: true, nom: true, avatarUrl: true } },
-        dossier: { select: { id: true, nom: true } },
-      },
-    });
   }
 }

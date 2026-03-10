@@ -1,3 +1,5 @@
+// src/app.module.ts
+
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_PIPE } from '@nestjs/core';
@@ -16,6 +18,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { AiModule } from './ai/ai.module';
 import { SearchModule } from './search/search.module';
 import { ShareModule } from './share/share.module';
+import { CommentsModule } from './comments/comments.module'; // ← new
 
 @Module({
   imports: [
@@ -32,8 +35,9 @@ import { ShareModule } from './share/share.module';
     DocumentsModule,
     NotificationsModule,
     AiModule,
-    SearchModule, 
+    SearchModule,
     ShareModule,
+    CommentsModule, // ← new
   ],
   providers: [
     {

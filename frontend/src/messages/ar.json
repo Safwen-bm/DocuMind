@@ -251,6 +251,12 @@
         "expand": "توسيع"
       }
     },
+    "notifications": {
+      "title": "الإشعارات",
+      "allCaughtUp": "أنت على اطلاع بكل شيء!",
+      "noNotifications": "لا توجد إشعارات بعد.",
+      "markAllRead": "تحديد الكل كمقروء"
+    },
     "workspace": {
       "overviewNav": "نظرة عامة",
       "membersNav": "الأعضاء",
@@ -457,6 +463,9 @@
       "exportDocx": "Word تنزيل كـ",
       "exportExcel": "Excel تنزيل كـ",
       "share": "مشاركة",
+      "comments": "التعليقات",
+      "openComments": "فتح التعليقات",
+      "closeComments": "إغلاق التعليقات",
       "versionHistoryPanel": {
         "title": "سجل الإصدارات",
         "noVersions": "لا توجد إصدارات بعد",
@@ -585,6 +594,25 @@
       "aiBadge": "ذكاء اصطناعي",
       "aiBothBadge": "ذكاء اصطناعي + نص",
       "shortcut": "Ctrl+K"
+    },
+    "comments": {
+      "title": "التعليقات",
+      "open": "مفتوحة",
+      "resolvedCount": "محلولة",
+      "all": "الكل",
+      "open_filter": "المفتوحة",
+      "resolved": "المحلولة",
+      "emptyAll": "لا توجد تعليقات",
+      "emptyAllDesc": "كن أول من يعلّق على هذا المستند.",
+      "emptyOpen": "لا توجد تعليقات مفتوحة",
+      "emptyResolved": "لا توجد تعليقات محلولة",
+      "inputPlaceholder": "اكتب تعليقاً… (Enter للإرسال)",
+      "hint": "Enter للإرسال · Shift+Enter لسطر جديد",
+      "resolve": "وضع علامة محلول",
+      "unresolve": "إعادة فتح",
+      "edit": "تعديل",
+      "delete": "حذف",
+      "resolvedBadge": "محلول"
     }
   },
   "profile": {

@@ -251,6 +251,12 @@
         "expand": "Agrandir"
       }
     },
+    "notifications": {
+      "title": "Notifications",
+      "allCaughtUp": "Vous êtes à jour !",
+      "noNotifications": "Aucune notification pour l'instant.",
+      "markAllRead": "Tout marquer comme lu"
+    },
     "workspace": {
       "overviewNav": "Vue d'ensemble",
       "membersNav": "Membres",
@@ -457,6 +463,9 @@
       "exportDocx": "Télécharger en Word",
       "exportExcel": "Télécharger en Excel",
       "share": "Partager",
+      "comments": "Commentaires",
+      "openComments": "Ouvrir les commentaires",
+      "closeComments": "Fermer les commentaires",
       "versionHistoryPanel": {
         "title": "Historique des versions",
         "noVersions": "Aucune version",
@@ -585,6 +594,25 @@
       "aiBadge": "IA",
       "aiBothBadge": "IA + texte",
       "shortcut": "Ctrl+K"
+    },
+    "comments": {
+      "title": "Commentaires",
+      "open": "ouverts",
+      "resolvedCount": "résolus",
+      "all": "Tous",
+      "open_filter": "Ouverts",
+      "resolved": "Résolus",
+      "emptyAll": "Aucun commentaire",
+      "emptyAllDesc": "Soyez le premier à commenter ce document.",
+      "emptyOpen": "Aucun commentaire ouvert",
+      "emptyResolved": "Aucun commentaire résolu",
+      "inputPlaceholder": "Écrire un commentaire… (Entrée pour envoyer)",
+      "hint": "Entrée pour envoyer · Maj+Entrée pour sauter une ligne",
+      "resolve": "Marquer comme résolu",
+      "unresolve": "Rouvrir",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "resolvedBadge": "Résolu"
     }
   },
   "profile": {
