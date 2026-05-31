@@ -1,5 +1,6 @@
-//C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\app\[locale]\(dashboard)\workspace\[workspaceId]\documents\_components\FolderTree.tsx
 "use client"
+
+// frontend/src/app/[locale]/(dashboard)/workspace/[workspaceId]/documents/_components/FolderTree.tsx
 
 import { useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
@@ -25,11 +26,11 @@ import {
 import {
   FolderOpen, Folder, FolderPlus, MoreHorizontal,
   Edit2, Trash2, Loader2, FileText, MoveRight,
-  ChevronRight, Star, Plus,
+  ChevronRight, Star, AlertCircle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-// ── Types ─────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface FolderNode extends Dossier {
   children: FolderNode[]
@@ -46,7 +47,7 @@ interface FolderTreeProps {
   onSelectFolder: (id: string | null) => void
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 export function buildTree(folders: Dossier[]): FolderNode[] {
   const map = new Map<string, FolderNode>()
@@ -72,7 +73,6 @@ export function buildTree(folders: Dossier[]): FolderNode[] {
 export function getFolderPath(folders: Dossier[], targetId: string): Dossier[] {
   const map = new Map<string, Dossier>()
   folders.forEach(f => map.set(f.id, f))
-
   const path: Dossier[] = []
   let current = map.get(targetId)
   while (current) {
@@ -82,7 +82,18 @@ export function getFolderPath(folders: Dossier[], targetId: string): Dossier[] {
   return path
 }
 
-// ── Document row in tree ──────────────────────────────────────────────────
+// ── Conflict error banner ─────────────────────────────────────────────────────
+
+function ConflictError({ message }: { message: string }) {
+  return (
+    <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+      <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+      <span>{message}</span>
+    </div>
+  )
+}
+
+// ── Document row ──────────────────────────────────────────────────────────────
 
 function DocTreeItem({
   doc, locale, workspaceId, selectedDocId, canEdit, depth,
@@ -114,7 +125,7 @@ function DocTreeItem({
   })
 
   const toggleFavMutation = useMutation({
-    mutationFn: () => documentApi.toggleFavori(doc.id, !doc.estFavori),
+    mutationFn: () => documentApi.toggleFavori(doc.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["docs", workspaceId] })
       queryClient.invalidateQueries({ queryKey: ["favori-docs"] })
@@ -125,9 +136,7 @@ function DocTreeItem({
     <>
       <div className="group relative">
         <button
-          onClick={() =>
-            router.push(`/${locale}/workspace/${workspaceId}/documents/${doc.id}`)
-          }
+          onClick={() => router.push(`/${locale}/workspace/${workspaceId}/documents/${doc.id}`)}
           className={cn(
             "flex w-full items-center gap-1.5 py-1 pr-8 text-sm transition-colors rounded-md",
             isActive
@@ -138,11 +147,10 @@ function DocTreeItem({
         >
           <FileText className="h-3.5 w-3.5 shrink-0" />
           <span className="truncate flex-1 text-left text-xs">{doc.titre}</span>
-          {doc.estFavori && (
+          {doc.isFavori && (
             <Star className="h-3 w-3 shrink-0 text-yellow-500 fill-yellow-500 mr-1" />
           )}
         </button>
-
         <div
           className="absolute right-1 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-0.5"
           onClick={e => e.stopPropagation()}
@@ -151,10 +159,10 @@ function DocTreeItem({
             onClick={() => toggleFavMutation.mutate()}
             className={cn(
               "flex h-5 w-5 items-center justify-center rounded transition-colors hover:bg-accent",
-              doc.estFavori ? "text-yellow-500" : "text-muted-foreground"
+              doc.isFavori ? "text-yellow-500" : "text-muted-foreground"
             )}
           >
-            <Star className={cn("h-3 w-3", doc.estFavori && "fill-yellow-500")} />
+            <Star className={cn("h-3 w-3", doc.isFavori && "fill-yellow-500")} />
           </button>
           {canEdit && (
             <button
@@ -195,7 +203,7 @@ function DocTreeItem({
   )
 }
 
-// ── Folder node (recursive) ───────────────────────────────────────────────
+// ── Folder node (recursive) ───────────────────────────────────────────────────
 
 function FolderNodeItem({
   node, allFolders, allDocuments, locale, selectedFolderId, selectedDocId,
@@ -225,13 +233,25 @@ function FolderNodeItem({
   const [expanded, setExpanded] = useState(shouldAutoExpand)
   const [renaming, setRenaming] = useState(false)
   const [renameVal, setRenameVal] = useState(node.nom)
+  const [renameError, setRenameError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [moveError, setMoveError] = useState<string | null>(null)
 
   const renameMutation = useMutation({
     mutationFn: () => documentApi.updateFolder(workspaceId, node.id, renameVal.trim()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["folders", workspaceId] })
       setRenaming(false)
+      setRenameError(null)
+    },
+    onError: (err: any) => {
+      const status = err?.response?.status ?? err?.status
+      if (status === 409) {
+        setRenameError(
+          err?.response?.data?.message ??
+          `Un dossier nommé "${renameVal.trim()}" existe déjà ici.`
+        )
+      }
     },
   })
 
@@ -252,6 +272,16 @@ function FolderNodeItem({
       documentApi.moveFolder(workspaceId, node.id, parentId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["folders", workspaceId] })
+      setMoveError(null)
+    },
+    onError: (err: any) => {
+      const status = err?.response?.status ?? err?.status
+      if (status === 409) {
+        setMoveError(
+          err?.response?.data?.message ??
+          `Un dossier nommé "${node.nom}" existe déjà dans cette destination.`
+        )
+      }
     },
   })
 
@@ -294,9 +324,8 @@ function FolderNodeItem({
           )}
         </button>
 
-        {/* Folder action menu — "New Subfolder" lives here */}
         {canEdit && (
-          <DropdownMenu>
+          <DropdownMenu onOpenChange={() => setMoveError(null)}>
             <DropdownMenuTrigger asChild>
               <button
                 className="absolute right-1 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-accent"
@@ -306,14 +335,9 @@ function FolderNodeItem({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="right" align="start" className="w-48">
-
-              {/* New subfolder — top of menu, most likely action */}
               <DropdownMenuItem
                 className="gap-2 cursor-pointer"
-                onClick={() => {
-                  setExpanded(true)
-                  onCreateSubfolder(node.id)
-                }}
+                onClick={() => { setExpanded(true); onCreateSubfolder(node.id) }}
               >
                 <FolderPlus className="h-3.5 w-3.5" />
                 {t("newSubfolder")}
@@ -323,19 +347,24 @@ function FolderNodeItem({
 
               <DropdownMenuItem
                 className="gap-2 cursor-pointer"
-                onClick={() => { setRenameVal(node.nom); setRenaming(true) }}
+                onClick={() => { setRenameVal(node.nom); setRenameError(null); setRenaming(true) }}
               >
                 <Edit2 className="h-3.5 w-3.5" />
                 {t("tooltips.rename")}
               </DropdownMenuItem>
 
-              {/* Move to submenu */}
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger className="gap-2 cursor-pointer">
                   <MoveRight className="h-3.5 w-3.5" />
                   {t("tooltips.move")}
                 </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-44 max-h-48 overflow-y-auto">
+                <DropdownMenuSubContent className="w-52 max-h-56 overflow-y-auto">
+                  {/* Show move error inline inside the submenu */}
+                  {moveError && (
+                    <div className="px-2 py-1.5">
+                      <ConflictError message={moveError} />
+                    </div>
+                  )}
                   {node.parentId && (
                     <DropdownMenuItem
                       className="gap-2 cursor-pointer"
@@ -370,13 +399,12 @@ function FolderNodeItem({
                 <Trash2 className="h-3.5 w-3.5" />
                 {t("tooltips.delete")}
               </DropdownMenuItem>
-
             </DropdownMenuContent>
           </DropdownMenu>
         )}
       </div>
 
-      {/* Children: subfolders then docs */}
+      {/* Children */}
       {expanded && (
         <div>
           {node.children.map(child => (
@@ -418,21 +446,27 @@ function FolderNodeItem({
       )}
 
       {/* Rename dialog */}
-      <Dialog open={renaming} onOpenChange={setRenaming}>
+      <Dialog open={renaming} onOpenChange={(v) => { setRenaming(v); setRenameError(null) }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{t("renameFolderModal.title")}</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={e => { e.preventDefault(); renameMutation.mutate() }}
-            className="mt-2 space-y-4"
+            className="mt-2 space-y-3"
           >
-            <Input value={renameVal} onChange={e => setRenameVal(e.target.value)} autoFocus />
+            <Input
+              value={renameVal}
+              onChange={e => { setRenameVal(e.target.value); setRenameError(null) }}
+              autoFocus
+            />
+            {/* Inline conflict error */}
+            {renameError && <ConflictError message={renameError} />}
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" onClick={() => setRenaming(false)}>
                 {t("renameFolderModal.cancel")}
               </Button>
-              <Button type="submit" disabled={renameMutation.isPending}>
+              <Button type="submit" disabled={renameMutation.isPending || !renameVal.trim()}>
                 {renameMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {t("renameFolderModal.submit")}
               </Button>
@@ -441,7 +475,7 @@ function FolderNodeItem({
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirm with cascade warning */}
+      {/* Delete confirm */}
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
@@ -481,7 +515,7 @@ function FolderNodeItem({
   )
 }
 
-// ── Root export ───────────────────────────────────────────────────────────
+// ── Root export ───────────────────────────────────────────────────────────────
 
 export function FolderTree({
   workspaceId, locale, folders, allDocuments,
@@ -493,6 +527,7 @@ export function FolderTree({
   const [createOpen, setCreateOpen] = useState(false)
   const [newName, setNewName] = useState("")
   const [newParentId, setNewParentId] = useState<string | null>(null)
+  const [createError, setCreateError] = useState<string | null>(null)
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -505,6 +540,16 @@ export function FolderTree({
       setCreateOpen(false)
       setNewName("")
       setNewParentId(null)
+      setCreateError(null)
+    },
+    onError: (err: any) => {
+      const status = err?.response?.status ?? err?.status
+      if (status === 409) {
+        setCreateError(
+          err?.response?.data?.message ??
+          `Un dossier nommé "${newName.trim()}" existe déjà ici.`
+        )
+      }
     },
   })
 
@@ -513,6 +558,8 @@ export function FolderTree({
 
   const handleCreateFolder = (parentId: string | null = null) => {
     setNewParentId(parentId)
+    setNewName("")
+    setCreateError(null)
     setCreateOpen(true)
   }
 
@@ -539,10 +586,8 @@ export function FolderTree({
           )}
         </div>
 
-        {/* Tree scroll area */}
+        {/* Tree */}
         <div className="flex-1 overflow-y-auto py-1 px-1">
-
-          {/* All Documents entry */}
           <button
             onClick={() => onSelectFolder(null)}
             className={cn(
@@ -561,7 +606,6 @@ export function FolderTree({
             )}
           </button>
 
-          {/* Folder tree with inline documents */}
           {tree.map(node => (
             <FolderNodeItem
               key={node.id}
@@ -579,7 +623,6 @@ export function FolderTree({
             />
           ))}
 
-          {/* Root-level documents (not in any folder) */}
           {rootDocs.length > 0 && (
             <div className="mt-1">
               {folders.length > 0 && (
@@ -601,7 +644,6 @@ export function FolderTree({
             </div>
           )}
 
-          {/* Empty state */}
           {folders.length === 0 && allDocuments.length === 0 && (
             <p className="px-3 py-6 text-xs text-muted-foreground/50 text-center">
               {t("noFoldersYet")}
@@ -610,8 +652,8 @@ export function FolderTree({
         </div>
       </aside>
 
-      {/* Create / new subfolder dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      {/* Create folder dialog */}
+      <Dialog open={createOpen} onOpenChange={(v) => { setCreateOpen(v); setCreateError(null) }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{t("createFolderModal.title")}</DialogTitle>
@@ -621,14 +663,16 @@ export function FolderTree({
           </DialogHeader>
           <form
             onSubmit={e => { e.preventDefault(); createMutation.mutate() }}
-            className="mt-2 space-y-4"
+            className="mt-2 space-y-3"
           >
             <Input
               placeholder={t("createFolderModal.placeholder")}
               value={newName}
-              onChange={e => setNewName(e.target.value)}
+              onChange={e => { setNewName(e.target.value); setCreateError(null) }}
               autoFocus
             />
+            {/* Inline conflict error */}
+            {createError && <ConflictError message={createError} />}
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
                 {t("createFolderModal.cancel")}

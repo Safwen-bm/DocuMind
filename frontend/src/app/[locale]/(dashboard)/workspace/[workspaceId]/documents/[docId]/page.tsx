@@ -1,31 +1,36 @@
-// src/app/[locale]/(dashboard)/workspace/[workspaceId]/documents/[docId]/page.tsx
+'use client';
 
-"use client";
+// frontend/src/app/[locale]/(dashboard)/workspace/[workspaceId]/documents/[docId]/page.tsx
+//
+// KEY FIX: saveMutation.onError now catches HTTP 409 (duplicate title) and
+// shows an inline conflict banner instead of letting the error propagate to
+// the Next.js error overlay.  The user can either pick a new name or let the
+// app auto-suffix it with (1), (2), … and retry.
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Underline from "@tiptap/extension-underline";
-import TextAlign from "@tiptap/extension-text-align";
-import Highlight from "@tiptap/extension-highlight";
-import { TextStyle } from "@tiptap/extension-text-style";
-import { Color } from "@tiptap/extension-color";
-import Placeholder from "@tiptap/extension-placeholder";
-import Image from "@tiptap/extension-image";
-import { documentApi } from "@/lib/document.api";
-import { workspaceApi } from "@/lib/workspace.api";
-import { useAuthStore } from "@/store/auth.store";
-import { commentsApi } from "@/lib/comments.api";
-import { Document, Workspace } from "@/lib/types";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Underline from '@tiptap/extension-underline';
+import TextAlign from '@tiptap/extension-text-align';
+import Highlight from '@tiptap/extension-highlight';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { Color } from '@tiptap/extension-color';
+import Placeholder from '@tiptap/extension-placeholder';
+import Image from '@tiptap/extension-image';
+import { documentApi } from '@/lib/document.api';
+import { workspaceApi } from '@/lib/workspace.api';
+import { useAuthStore } from '@/store/auth.store';
+import { commentsApi } from '@/lib/comments.api';
+import { Document, Workspace } from '@/lib/types';
+import { Button } from '@/components/ui/button';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from '@/components/ui/tooltip';
 import {
   Star,
   History,
@@ -41,25 +46,40 @@ import {
   FileDown,
   FileSpreadsheet,
   Share2,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { formatDistanceToNow } from "date-fns";
-import { useTranslations } from "next-intl";
-import { EditorToolbar } from "./_components/EditorToolbar";
-import { VersionHistory } from "./_components/VersionHistory";
-import { AiChatPanel } from "./_components/AiChatPanel";
-import { CommentsPanel } from "./_components/CommentsPanel";
-import { ShareModal } from "./_components/ShareModal";
-import { Table } from "@tiptap/extension-table";
-import TableRow from "@tiptap/extension-table-row";
-import TableCell from "@tiptap/extension-table-cell";
-import TableHeader from "@tiptap/extension-table-header";
+  AlertCircle,
+  RefreshCw,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
+import { useTranslations } from 'next-intl';
+import { EditorToolbar } from './_components/EditorToolbar';
+import { VersionHistory } from './_components/VersionHistory';
+import { AiChatPanel } from './_components/AiChatPanel';
+import { CommentsPanel } from './_components/CommentsPanel';
+import { ShareModal } from './_components/ShareModal';
+import { InlineAiMenu } from './_components/InlineAiMenu';
+import { PresenceAvatars } from './_components/PresenceAvatars';
+import { LockBanner } from './_components/LockBanner';
+import { useDocumentPresence } from '@/hooks/useDocumentPresence';
+import { Table } from '@tiptap/extension-table';
+import TableRow from '@tiptap/extension-table-row';
+import TableCell from '@tiptap/extension-table-cell';
+import TableHeader from '@tiptap/extension-table-header';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu';
+import { toast } from 'sonner';
+
+// ── Helper: auto-suffix "name" → "name (1)" → "name (2)" etc. ────────────────
+function buildSuffixedTitle(titre: string): string {
+  const base = titre.replace(/\s*\(\d+\)$/, '');
+  // We can't query the DB here, so we just add (1); the backend resolveUniqueTitle
+  // will bump it further if (1) also exists.
+  return `${base} (1)`;
+}
 
 export default function DocumentEditorPage() {
   const params = useParams();
@@ -68,83 +88,145 @@ export default function DocumentEditorPage() {
   const docId = params.docId as string;
   const router = useRouter();
   const queryClient = useQueryClient();
-  const t = useTranslations("dashboard.editor");
-
-  // Current user (needed by CommentsPanel to know who is editing)
+  const t = useTranslations('dashboard.editor');
   const { user } = useAuthStore();
 
-  // ── Export state ───────────────────────────────────────────────────────────
-  const [isExporting, setIsExporting] = useState<
-    "pdf" | "docx" | "excel" | null
-  >(null);
-
-  // ── Mode ───────────────────────────────────────────────────────────────────
+  const [isExporting, setIsExporting] = useState<'pdf' | 'docx' | 'excel' | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-
-  // ── Panel state — only one panel open at a time ────────────────────────────
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
-
-  // ── State ──────────────────────────────────────────────────────────────────
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState('');
   const [isFavori, setIsFavori] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [updatedBy, setUpdatedBy] = useState<{
+    nom: string;
+    avatarUrl: string | null;
+    userId: string;
+    isEditing: boolean;
+  } | null>(null);
 
+  // ── NEW: 409 conflict state ───────────────────────────────────────────────
+  const [titleConflict, setTitleConflict] = useState<string | null>(null);
+
+  const isSavingRef = useRef(false);
   const currentContentRef = useRef<any>(null);
   const isLoadedRef = useRef(false);
   const titleSaveTimer = useRef<NodeJS.Timeout | null>(null);
   const autoSyncTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // ── Queries ────────────────────────────────────────────────────────────────
-  const { data: doc, isLoading } = useQuery<Document>({
-    queryKey: ["document", docId],
+  // ── Queries ───────────────────────────────────────────────────────────────
+
+  const {
+    data: doc,
+    isLoading,
+    refetch: refetchDoc,
+  } = useQuery<Document>({
+    queryKey: ['document', docId],
     queryFn: () => documentApi.getOne(docId),
     staleTime: 0,
-    refetchOnMount: "always",
+    refetchOnMount: 'always',
   });
 
   const { data: workspace } = useQuery<Workspace>({
-    queryKey: ["workspace", workspaceId],
+    queryKey: ['workspace', workspaceId],
     queryFn: () => workspaceApi.getOne(workspaceId),
   });
 
-  // Count of unresolved comments — shown as badge on the Comments button
   const { data: allComments = [] } = useQuery({
-    queryKey: ["comments", docId],
+    queryKey: ['comments', docId],
     queryFn: () => commentsApi.getAll(docId),
     staleTime: 30000,
   });
-  const openCommentsCount = allComments.filter((c) => !c.estResolu).length;
+  const openCommentsCount = allComments.filter((c: any) => !c.estResolu).length;
 
   const canEdit = workspace
-    ? ["EDITEUR", "ADMINISTRATEUR", "PROPRIETAIRE"].includes(workspace.monRole)
+    ? ['EDITEUR', 'ADMINISTRATEUR', 'PROPRIETAIRE'].includes(workspace.monRole)
     : false;
 
-  // ── Mutations ──────────────────────────────────────────────────────────────
+  // ── Mutations ─────────────────────────────────────────────────────────────
+
   const silentSyncMutation = useMutation({
     mutationFn: (contenu: any) => documentApi.updateSilent(docId, { contenu }),
   });
 
   const saveMutation = useMutation({
-    mutationFn: (data: {
-      titre?: string;
-      contenu?: any;
-      estFavori?: boolean;
-    }) => documentApi.update(docId, data),
+    mutationFn: (data: { titre?: string; contenu?: any }) =>
+      documentApi.update(docId, data),
+    onMutate: () => {
+      isSavingRef.current = true;
+      // Clear any previous conflict banner when retrying
+      setTitleConflict(null);
+    },
     onSuccess: () => {
       setHasUnsavedChanges(false);
+      isSavingRef.current = false;
       setLastSaved(new Date());
-      queryClient.invalidateQueries({ queryKey: ["docs", workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["recent-docs"] });
-      queryClient.invalidateQueries({ queryKey: ["favori-docs"] });
-      queryClient.invalidateQueries({ queryKey: ["versions", docId] });
+      emitSaved();
+      queryClient.invalidateQueries({ queryKey: ['docs', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['recent-docs'] });
+      queryClient.invalidateQueries({ queryKey: ['favori-docs'] });
+      queryClient.invalidateQueries({ queryKey: ['versions', docId] });
+    },
+    onError: (err: any) => {
+      isSavingRef.current = false;
+      const status = err?.response?.status ?? err?.status;
+      if (status === 409) {
+        // Show an inline conflict banner — do NOT crash, do NOT lose content
+        setTitleConflict(title);
+      } else {
+        toast.error(t('saveError'));
+      }
     },
   });
 
-  // ── TipTap editor ──────────────────────────────────────────────────────────
+  // ── NEW: auto-suffix retry ────────────────────────────────────────────────
+  function handleAutoRename() {
+    const newTitle = buildSuffixedTitle(title);
+    setTitle(newTitle);
+    setTitleConflict(null);
+    saveMutation.mutate({ titre: newTitle, contenu: currentContentRef.current });
+  }
+
+  // ── Presence ──────────────────────────────────────────────────────────────
+
+  const { presence, emitSaved } = useDocumentPresence({
+    documentId: docId,
+    user: user ?? null,
+    isEditing,
+    onLockDenied: (lockedBy) => {
+      setIsEditing(false);
+      toast.error(`${lockedBy.nom} is currently editing this document.`, {
+        description: 'Editing is locked. Please wait until they are done.',
+        duration: 5000,
+      });
+    },
+    onDocumentUpdated: () => {
+      if (!isEditing) {
+        const editor = presence.users.find(
+          (u) => u.isEditing && u.userId !== user?.id,
+        );
+        setUpdatedBy(
+          editor ?? {
+            nom: 'A collaborator',
+            avatarUrl: null,
+            userId: '',
+            isEditing: false,
+          },
+        );
+      }
+    },
+  });
+
+  const lockedByOther =
+    presence.lockedBy && presence.lockedBy.userId !== user?.id
+      ? presence.lockedBy
+      : null;
+
+  // ── Editor setup ──────────────────────────────────────────────────────────
+
   const editor = useEditor({
     immediatelyRender: false,
     editable: false,
@@ -153,31 +235,32 @@ export default function DocumentEditorPage() {
         heading: { levels: [1, 2, 3] },
         codeBlock: {
           HTMLAttributes: {
-            class: "rounded-lg bg-muted p-4 font-mono text-sm",
+            class: 'rounded-lg bg-muted p-4 font-mono text-sm',
           },
         },
+        underline: false,
       }),
       Underline,
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Highlight.configure({ multicolor: true }),
       TextStyle,
       Color,
       Image.configure({
-        HTMLAttributes: { class: "rounded-lg max-w-full my-4" },
+        HTMLAttributes: { class: 'rounded-lg max-w-full my-4' },
       }),
       Table.configure({
         resizable: true,
-        HTMLAttributes: { class: "border-collapse table-auto w-full" },
+        HTMLAttributes: { class: 'border-collapse table-auto w-full' },
       }),
       TableRow,
       TableHeader,
       TableCell,
-      Placeholder.configure({ placeholder: t("placeholder") }),
+      Placeholder.configure({ placeholder: t('placeholder') }),
     ],
     editorProps: {
       attributes: {
         class:
-          "prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[500px] px-1",
+          'prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[500px] px-1',
       },
     },
     onUpdate: ({ editor }) => {
@@ -186,16 +269,19 @@ export default function DocumentEditorPage() {
     },
   });
 
+  // ── Effects ───────────────────────────────────────────────────────────────
+
   useEffect(() => {
     if (!editor) return;
-    editor.setEditable(isEditing);
-    if (isEditing) setTimeout(() => editor.commands.focus("end"), 50);
-  }, [isEditing, editor]);
+    editor.setEditable(isEditing && !lockedByOther);
+    if (isEditing && !lockedByOther)
+      setTimeout(() => editor.commands.focus('end'), 50);
+  }, [isEditing, editor, lockedByOther]);
 
   useEffect(() => {
     if (doc && editor && !isLoadedRef.current) {
       setTitle(doc.titre);
-      setIsFavori(doc.estFavori);
+      setIsFavori(doc.isFavori);
       setLastSaved(new Date(doc.dateMiseAJour));
       if (doc.contenu && Object.keys(doc.contenu).length > 0) {
         editor.commands.setContent(doc.contenu);
@@ -221,16 +307,15 @@ export default function DocumentEditorPage() {
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
+      if (hasUnsavedChanges && !isSavingRef.current) {
         e.preventDefault();
-        e.returnValue = "";
+        e.returnValue = '';
       }
     };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
   }, [hasUnsavedChanges]);
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
   const handleManualSave = useCallback(() => {
     if (!editor || !currentContentRef.current || !isEditing) return;
     saveMutation.mutate({ titre: title, contenu: currentContentRef.current });
@@ -238,17 +323,20 @@ export default function DocumentEditorPage() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
         handleManualSave();
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [handleManualSave]);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
 
   function handleTitleChange(value: string) {
     setTitle(value);
+    setTitleConflict(null); // clear conflict banner as user types a new name
     setHasUnsavedChanges(true);
     if (titleSaveTimer.current) clearTimeout(titleSaveTimer.current);
     titleSaveTimer.current = setTimeout(() => {
@@ -259,19 +347,19 @@ export default function DocumentEditorPage() {
   function handleToggleFavori() {
     const newVal = !isFavori;
     setIsFavori(newVal);
-    saveMutation.mutate({ estFavori: newVal });
+    documentApi.toggleFavori(docId).catch(() => setIsFavori(!newVal));
   }
 
   async function handleImageUpload(file: File) {
-    if (!file.type.startsWith("image/")) return;
+    if (!file.type.startsWith('image/')) return;
     try {
       const formData = new FormData();
-      formData.append("file", file);
-      formData.append("upload_preset", "documind");
-      formData.append("folder", "documents");
+      formData.append('file', file);
+      formData.append('upload_preset', 'documind');
+      formData.append('folder', 'documents');
       const res = await fetch(
         `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-        { method: "POST", body: formData },
+        { method: 'POST', body: formData },
       );
       const data = await res.json();
       if (data.secure_url) {
@@ -279,39 +367,65 @@ export default function DocumentEditorPage() {
         setHasUnsavedChanges(true);
       }
     } catch (err) {
-      console.error("Image upload failed:", err);
+      console.error('Image upload failed:', err);
     }
   }
 
-  function handleExitEdit() {
+  async function handleExitEdit() {
     if (hasUnsavedChanges && currentContentRef.current) {
-      saveMutation.mutate({ titre: title, contenu: currentContentRef.current });
+      try {
+        await saveMutation.mutateAsync({
+          titre: title,
+          contenu: currentContentRef.current,
+        });
+      } catch (err: any) {
+        const status = err?.response?.status ?? err?.status;
+        // If it's a title conflict, stay in edit mode so user can fix it
+        if (status === 409) return;
+      }
     }
     setIsEditing(false);
   }
 
-  function handleBack() {
-    if (hasUnsavedChanges) {
-      const ok = confirm(t("unsavedWarning"));
-      if (!ok) return;
+  async function handleBack() {
+    if (hasUnsavedChanges && currentContentRef.current && isEditing) {
+      try {
+        await saveMutation.mutateAsync({
+          titre: title,
+          contenu: currentContentRef.current,
+        });
+      } catch (err: any) {
+        const status = err?.response?.status ?? err?.status;
+        if (status === 409) {
+          // Stay on page so user can resolve the title conflict
+          return;
+        }
+        const ok = window.confirm(t('unsavedWarning'));
+        if (!ok) return;
+      }
     }
     router.push(`/${locale}/workspace/${workspaceId}/documents`);
   }
 
-  async function handleExport(format: "pdf" | "docx" | "excel") {
+  async function handleExport(format: 'pdf' | 'docx' | 'excel') {
     setIsExporting(format);
     try {
-      if (format === "pdf") await documentApi.exportPdf(docId, title);
-      if (format === "docx") await documentApi.exportDocx(docId, title);
-      if (format === "excel") await documentApi.exportExcel(docId, title);
+      if (format === 'pdf') await documentApi.exportPdf(docId, title);
+      if (format === 'docx') await documentApi.exportDocx(docId, title);
+      if (format === 'excel') await documentApi.exportExcel(docId, title);
     } catch (err) {
-      console.error("Export failed:", err);
+      console.error('Export failed:', err);
     } finally {
       setIsExporting(null);
     }
   }
 
-  // Only one panel open at a time
+  async function handleReload() {
+    setUpdatedBy(null);
+    isLoadedRef.current = false;
+    await refetchDoc();
+  }
+
   function toggleAiPanel() {
     setAiPanelOpen((v) => {
       if (!v) setCommentsPanelOpen(false);
@@ -326,7 +440,8 @@ export default function DocumentEditorPage() {
     });
   }
 
-  // ── Loading screen ─────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
+
   if (isLoading || !editor) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -337,16 +452,15 @@ export default function DocumentEditorPage() {
 
   const anyPanelOpen = aiPanelOpen || commentsPanelOpen;
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <TooltipProvider delayDuration={300}>
       <div
         className={cn(
-          "flex h-full flex-col transition-all duration-300",
-          anyPanelOpen ? "mr-[420px]" : "mr-0",
+          'flex h-full flex-col transition-all duration-300',
+          anyPanelOpen ? 'mr-[420px]' : 'mr-0',
         )}
       >
-        {/* ── Top bar ─────────────────────────────────────────────────────── */}
+        {/* ── Top bar ── */}
         <div className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border bg-background px-4">
           <div className="flex items-center gap-2 min-w-0">
             <Button
@@ -354,42 +468,56 @@ export default function DocumentEditorPage() {
               size="sm"
               className="h-8 gap-1.5 px-2 text-muted-foreground hover:text-foreground shrink-0"
               onClick={handleBack}
+              disabled={saveMutation.isPending}
             >
-              <ChevronLeft className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs">{t("back")}</span>
+              {saveMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ChevronLeft className="h-4 w-4" />
+              )}
+              <span className="hidden sm:inline text-xs">{t('back')}</span>
             </Button>
 
             {isEditing ? (
               <input
                 value={title}
                 onChange={(e) => handleTitleChange(e.target.value)}
-                placeholder={t("untitled")}
-                className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-foreground outline-none placeholder:text-muted-foreground truncate"
+                placeholder={t('untitled')}
+                className={cn(
+                  'min-w-0 flex-1 bg-transparent text-sm font-semibold text-foreground outline-none placeholder:text-muted-foreground truncate',
+                  titleConflict && 'text-destructive',
+                )}
               />
             ) : (
               <h1 className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground select-text">
-                {title || t("untitled")}
+                {title || t('untitled')}
               </h1>
             )}
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            {/* Save status */}
+            {user && (
+              <PresenceAvatars users={presence.users} currentUserId={user.id} />
+            )}
+
             {isEditing && (
               <span className="text-xs text-muted-foreground hidden sm:block">
-                {hasUnsavedChanges ? (
+                {titleConflict ? (
+                  <span className="text-destructive font-medium">
+                    {t('titleConflict')}
+                  </span>
+                ) : hasUnsavedChanges ? (
                   <span className="text-yellow-500 font-medium">
-                    {t("unsaved")}
+                    {t('unsaved')}
                   </span>
                 ) : lastSaved ? (
-                  t("saved", {
+                  t('saved', {
                     time: formatDistanceToNow(lastSaved, { addSuffix: true }),
                   })
                 ) : null}
               </span>
             )}
 
-            {/* Share */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -397,67 +525,64 @@ export default function DocumentEditorPage() {
                   className="flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 >
                   <Share2 className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">{t("share")}</span>
+                  <span className="hidden sm:inline">{t('share')}</span>
                 </button>
               </TooltipTrigger>
-              <TooltipContent>{t("share")}</TooltipContent>
+              <TooltipContent>{t('share')}</TooltipContent>
             </Tooltip>
 
-            {/* ── Comments button with unresolved count badge ── */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   onClick={toggleCommentsPanel}
                   className={cn(
-                    "relative flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-all",
+                    'relative flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-all',
                     commentsPanelOpen
-                      ? "bg-orange-500 text-white"
-                      : "border border-orange-400/30 bg-orange-500/5 text-orange-500 hover:bg-orange-500/10",
+                      ? 'bg-orange-500 text-white'
+                      : 'border border-orange-400/30 bg-orange-500/5 text-orange-500 hover:bg-orange-500/10',
                   )}
                 >
                   <MessageSquare className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">{t("comments")}</span>
+                  <span className="hidden sm:inline">{t('comments')}</span>
                   {openCommentsCount > 0 && (
                     <span
                       className={cn(
-                        "flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold",
+                        'flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold',
                         commentsPanelOpen
-                          ? "bg-white text-orange-500"
-                          : "bg-orange-500 text-white",
+                          ? 'bg-white text-orange-500'
+                          : 'bg-orange-500 text-white',
                       )}
                     >
-                      {openCommentsCount > 99 ? "99+" : openCommentsCount}
+                      {openCommentsCount > 99 ? '99+' : openCommentsCount}
                     </span>
                   )}
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                {commentsPanelOpen ? t("closeComments") : t("openComments")}
+                {commentsPanelOpen ? t('closeComments') : t('openComments')}
               </TooltipContent>
             </Tooltip>
 
-            {/* AI Assistant */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   onClick={toggleAiPanel}
                   className={cn(
-                    "flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-all",
+                    'flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-all',
                     aiPanelOpen
-                      ? "bg-primary text-primary-foreground"
-                      : "border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10",
+                      ? 'bg-primary text-primary-foreground'
+                      : 'border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10',
                   )}
                 >
                   <Sparkles className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">{t("askAi")}</span>
+                  <span className="hidden sm:inline">{t('askAi')}</span>
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                {aiPanelOpen ? t("closeAi") : t("openAi")}
+                {aiPanelOpen ? t('closeAi') : t('openAi')}
               </TooltipContent>
             </Tooltip>
 
-            {/* Export */}
             <DropdownMenu>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -474,57 +599,53 @@ export default function DocumentEditorPage() {
                     </button>
                   </DropdownMenuTrigger>
                 </TooltipTrigger>
-                <TooltipContent>{t("export")}</TooltipContent>
+                <TooltipContent>{t('export')}</TooltipContent>
               </Tooltip>
               <DropdownMenuContent align="end" className="w-44">
                 <DropdownMenuItem
                   className="gap-2 cursor-pointer"
-                  onClick={() => handleExport("pdf")}
+                  onClick={() => handleExport('pdf')}
                   disabled={!!isExporting}
                 >
                   <FileText className="h-3.5 w-3.5 text-red-500" />
-                  {t("exportPdf")}
+                  {t('exportPdf')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="gap-2 cursor-pointer"
-                  onClick={() => handleExport("docx")}
+                  onClick={() => handleExport('docx')}
                   disabled={!!isExporting}
                 >
                   <FileDown className="h-3.5 w-3.5 text-blue-500" />
-                  {t("exportDocx")}
+                  {t('exportDocx')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="gap-2 cursor-pointer"
-                  onClick={() => handleExport("excel")}
+                  onClick={() => handleExport('excel')}
                   disabled={!!isExporting}
                 >
                   <FileSpreadsheet className="h-3.5 w-3.5 text-green-600" />
-                  {t("exportExcel")}
+                  {t('exportExcel')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Star */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   onClick={handleToggleFavori}
                   className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-accent",
-                    isFavori ? "text-yellow-500" : "text-muted-foreground",
+                    'flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-accent',
+                    isFavori ? 'text-yellow-500' : 'text-muted-foreground',
                   )}
                 >
-                  <Star
-                    className={cn("h-4 w-4", isFavori && "fill-yellow-500")}
-                  />
+                  <Star className={cn('h-4 w-4', isFavori && 'fill-yellow-500')} />
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                {isFavori ? t("removeFromStarred") : t("addToStarred")}
+                {isFavori ? t('removeFromStarred') : t('addToStarred')}
               </TooltipContent>
             </Tooltip>
 
-            {/* Version history */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -534,10 +655,9 @@ export default function DocumentEditorPage() {
                   <History className="h-4 w-4" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent>{t("versionHistory")}</TooltipContent>
+              <TooltipContent>{t('versionHistory')}</TooltipContent>
             </Tooltip>
 
-            {/* Edit / Save / Done */}
             {isEditing ? (
               <>
                 <Button
@@ -545,7 +665,10 @@ export default function DocumentEditorPage() {
                   variant="outline"
                   className="gap-1.5"
                   onClick={handleManualSave}
-                  disabled={saveMutation.isPending || !hasUnsavedChanges}
+                  disabled={
+                    saveMutation.isPending ||
+                    (!hasUnsavedChanges && !titleConflict)
+                  }
                 >
                   {saveMutation.isPending ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -553,12 +676,21 @@ export default function DocumentEditorPage() {
                     <Save className="h-3.5 w-3.5" />
                   )}
                   <span className="hidden sm:inline">
-                    {saveMutation.isPending ? t("saving") : t("save")}
+                    {saveMutation.isPending ? t('saving') : t('save')}
                   </span>
                 </Button>
-                <Button size="sm" className="gap-1.5" onClick={handleExitEdit}>
-                  <Eye className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">{t("doneEditing")}</span>
+                <Button
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={handleExitEdit}
+                  disabled={saveMutation.isPending}
+                >
+                  {saveMutation.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5" />
+                  )}
+                  <span className="hidden sm:inline">{t('doneEditing')}</span>
                 </Button>
               </>
             ) : (
@@ -568,33 +700,74 @@ export default function DocumentEditorPage() {
                     <Button
                       size="sm"
                       className="gap-1.5"
-                      disabled={!canEdit}
+                      disabled={!canEdit || !!lockedByOther}
                       onClick={() => setIsEditing(true)}
                     >
                       <Pencil className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">{t("edit")}</span>
+                      <span className="hidden sm:inline">{t('edit')}</span>
                     </Button>
                   </span>
                 </TooltipTrigger>
-                {!canEdit && <TooltipContent>{t("readOnly")}</TooltipContent>}
+                {!canEdit && (
+                  <TooltipContent>{t('readOnly')}</TooltipContent>
+                )}
+                {canEdit && lockedByOther && (
+                  <TooltipContent>
+                    {lockedByOther.nom} is currently editing
+                  </TooltipContent>
+                )}
               </Tooltip>
             )}
           </div>
         </div>
 
-        {/* ── Toolbar ─────────────────────────────────────────────────────── */}
+        {/* ── NEW: Title-conflict banner ── */}
+        {titleConflict && (
+          <div className="flex shrink-0 items-center gap-3 border-b border-destructive/20 bg-destructive/5 px-4 py-2.5">
+            <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
+            <p className="flex-1 text-xs text-destructive">
+              {t('titleConflictBanner', { titre: titleConflict })}
+            </p>
+            <button
+              onClick={handleAutoRename}
+              className="flex items-center gap-1.5 rounded-lg border border-destructive/30 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              <RefreshCw className="h-3 w-3" />
+              {t('titleConflictAutoRename')}
+            </button>
+            <button
+              onClick={() => setTitleConflict(null)}
+              className="text-xs text-destructive/70 underline-offset-2 hover:underline"
+            >
+              {t('titleConflictDismiss')}
+            </button>
+          </div>
+        )}
+
+        {lockedByOther && !isEditing && (
+          <LockBanner lockedBy={lockedByOther} variant="locked" />
+        )}
+        {updatedBy && !isEditing && (
+          <LockBanner
+            lockedBy={updatedBy}
+            variant="updated"
+            onReloadRequest={handleReload}
+          />
+        )}
+
         {isEditing && (
           <EditorToolbar editor={editor} onImageUpload={handleImageUpload} />
         )}
 
-        {/* ── Content area ────────────────────────────────────────────────── */}
         <div className="flex-1 min-h-0 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:transparent">
           <div className="mx-auto max-w-3xl px-8 py-10">
             <EditorContent editor={editor} />
           </div>
+          {isEditing && editor && (
+            <InlineAiMenu editor={editor} workspaceId={workspaceId} />
+          )}
         </div>
 
-        {/* ── Version history ──────────────────────────────────────────────── */}
         <VersionHistory
           docId={docId}
           workspaceId={workspaceId}
@@ -608,7 +781,6 @@ export default function DocumentEditorPage() {
         />
       </div>
 
-      {/* ── AI Chat Panel ────────────────────────────────────────────────── */}
       <AiChatPanel
         open={aiPanelOpen}
         onClose={() => setAiPanelOpen(false)}
@@ -618,13 +790,12 @@ export default function DocumentEditorPage() {
         mode="document"
       />
 
-      {/* ── Comments Panel ───────────────────────────────────────────────── */}
       <CommentsPanel
         open={commentsPanelOpen}
         onClose={() => setCommentsPanelOpen(false)}
         documentId={docId}
-        currentUserId={user?.id ?? ""}
-        currentUserRole={workspace?.monRole ?? "LECTEUR"}
+        currentUserId={user?.id ?? ''}
+        currentUserRole={workspace?.monRole ?? 'LECTEUR'}
       />
 
       <ShareModal

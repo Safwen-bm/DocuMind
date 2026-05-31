@@ -10,12 +10,14 @@ import { UploadService } from './upload.service';
 import { AuthModule } from '../auth/auth.module';
 import { ActiviteModule } from '../activite/activite.module';
 import { AiModule } from '../ai/ai.module';
+import { PlansModule } from '../plans/plans.module';
 
 @Module({
   imports: [
     AuthModule,
     ActiviteModule,
     AiModule,
+    PlansModule,
     MulterModule.register({ storage: memoryStorage() }),
   ],
   providers: [DocumentsService, ExportService, UploadService],

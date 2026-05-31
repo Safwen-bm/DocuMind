@@ -1,3 +1,4 @@
+// C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\app\[locale]\(dashboard)\dashboard\page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -33,10 +34,14 @@ import {
   Activity,
   Clock,
   TrendingUp,
+  BarChart2,
+  MessageSquare,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { fr, ar, enUS } from "date-fns/locale";
+import { PlanBadge } from "@/components/plans/PlanBadge";
 
 const roleColors: Record<string, string> = {
   PROPRIETAIRE: "bg-primary/10 text-primary",
@@ -45,6 +50,108 @@ const roleColors: Record<string, string> = {
   LECTEUR: "bg-muted text-muted-foreground",
 };
 
+// ─── Improved stat card with trend indicator ──────────────────────────────────
+
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  color,
+  loading,
+  trend,
+  trendLabel,
+}: {
+  label: string;
+  value: number;
+  icon: any;
+  color: string;
+  loading: boolean;
+  trend?: number;
+  trendLabel?: string;
+}) {
+  const isUp = (trend ?? 0) > 0;
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div
+        className={cn(
+          "mb-3 flex h-10 w-10 items-center justify-center rounded-lg",
+          color,
+        )}
+      >
+        <Icon className="h-5 w-5" />
+      </div>
+      {loading ? (
+        <div className="h-8 w-12 animate-pulse rounded bg-muted" />
+      ) : (
+        <p className="text-2xl font-bold text-foreground">{value}</p>
+      )}
+      <p className="mt-0.5 text-sm text-muted-foreground">{label}</p>
+      {!loading && trend !== undefined && trend > 0 && (
+        <div className="mt-2">
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+            <TrendingUp className="h-3 w-3" />+{trend} {trendLabel}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── AI usage mini card ───────────────────────────────────────────────────────
+
+function AIUsageCard({
+  workspaces,
+  locale,
+  router,
+  t,
+}: {
+  workspaces: Workspace[] | undefined;
+  locale: string;
+  router: any;
+  t: any;
+}) {
+  if (!workspaces?.length) return null;
+
+  return (
+    <div className="rounded-xl border border-violet-500/20 bg-gradient-to-br from-violet-500/5 to-transparent p-5">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/10">
+          <Sparkles className="h-4 w-4 text-violet-500" />
+        </div>
+        <p className="font-semibold text-foreground text-sm">{t("ai.title")}</p>
+      </div>
+      <p className="text-xs text-muted-foreground mb-3">
+        {t("ai.description")}
+      </p>
+      <div className="space-y-2">
+        {workspaces.slice(0, 3).map((ws) => (
+          <button
+            key={ws.id}
+            onClick={() => router.push(`/${locale}/workspace/${ws.id}/ai`)}
+            className="w-full flex items-center justify-between rounded-lg border border-border bg-card/50 px-3 py-2 text-left hover:border-violet-500/30 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <div className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 text-primary font-bold text-xs">
+                {ws.nom[0].toUpperCase()}
+              </div>
+              <span className="text-xs font-medium text-foreground truncate max-w-[120px]">
+                {ws.nom}
+              </span>
+            </div>
+            <div className="flex items-center gap-1 text-violet-500">
+              <MessageSquare className="h-3.5 w-3.5" />
+              <span className="text-xs">{t("ai.chat")}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main dashboard ───────────────────────────────────────────────────────────
+
 export default function DashboardPage() {
   const params = useParams();
   const locale = params.locale as string;
@@ -52,19 +159,19 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const { user, justLoggedIn, setJustLoggedIn } = useAuthStore();
 
-  useEffect(() => {
-    if (justLoggedIn) {
-      setJustLoggedIn(false);
-      toast.success(t("welcomeBack", { name: user?.nom?.split(" ")[0] ?? "" }));
-    }
-  }, []);
-
   const currentLocale = useLocale();
   const t = useTranslations("dashboard.home");
   const tRoles = useTranslations("dashboard.workspace.roles");
 
   const dateFnsLocale =
     currentLocale === "fr" ? fr : currentLocale === "ar" ? ar : enUS;
+
+  useEffect(() => {
+    if (justLoggedIn) {
+      setJustLoggedIn(false);
+      toast.success(t("welcomeBack", { name: user?.nom?.split(" ")[0] ?? "" }));
+    }
+  }, []);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [nom, setNom] = useState("");
@@ -108,7 +215,9 @@ export default function DashboardPage() {
       router.push(`/${locale}/workspace/${workspace.id}`);
     },
     onError: (err: any) => {
-      setError(err.response?.data?.message || "Something went wrong.");
+      if (!err?.handled) {
+        setError(err.response?.data?.message || "Something went wrong.");
+      }
     },
   });
 
@@ -133,6 +242,7 @@ export default function DashboardPage() {
       icon: FolderOpen,
       color: "text-primary bg-primary/10",
       loading: wsLoading,
+      trend: undefined,
     },
     {
       label: t("stats.documents"),
@@ -140,6 +250,8 @@ export default function DashboardPage() {
       icon: FileText,
       color: "text-blue-500 bg-blue-500/10",
       loading: !stats,
+      trend: (stats as any)?.documentsThisWeek,
+      trendLabel: t("thisWeek"),
     },
     {
       label: t("stats.members"),
@@ -147,6 +259,7 @@ export default function DashboardPage() {
       icon: Users,
       color: "text-green-500 bg-green-500/10",
       loading: wsLoading,
+      trend: undefined,
     },
     {
       label: t("stats.starred"),
@@ -154,6 +267,7 @@ export default function DashboardPage() {
       icon: Star,
       color: "text-yellow-500 bg-yellow-500/10",
       loading: !stats,
+      trend: undefined,
     },
   ];
 
@@ -181,25 +295,7 @@ export default function DashboardPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {statCards.map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-xl border border-border bg-card p-5"
-          >
-            <div
-              className={cn(
-                "mb-3 flex h-10 w-10 items-center justify-center rounded-lg",
-                stat.color,
-              )}
-            >
-              <stat.icon className="h-5 w-5" />
-            </div>
-            {stat.loading ? (
-              <div className="h-8 w-12 animate-pulse rounded bg-muted" />
-            ) : (
-              <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-            )}
-            <p className="mt-0.5 text-sm text-muted-foreground">{stat.label}</p>
-          </div>
+          <StatCard key={stat.label} {...stat} />
         ))}
       </div>
 
@@ -379,7 +475,7 @@ export default function DashboardPage() {
                     })}
                   </p>
                 </div>
-                {doc.estFavori && (
+                {doc.isFavori && (
                   <Star className="h-3.5 w-3.5 shrink-0 text-yellow-500 fill-yellow-500" />
                 )}
               </button>
@@ -388,87 +484,123 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* My Workspaces */}
-      <div>
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="font-semibold text-foreground">{t("myWorkspaces")}</h3>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCreateOpen(true)}
-            className="gap-1.5 text-xs"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {t("new")}
-          </Button>
-        </div>
-
-        {wsLoading ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-28 animate-pulse rounded-xl bg-muted" />
-            ))}
-          </div>
-        ) : workspaces && workspaces.length > 0 ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {workspaces.map((ws) => (
-              <button
-                key={ws.id}
-                onClick={() => router.push(`/${locale}/workspace/${ws.id}`)}
-                className="group flex flex-col rounded-xl border border-border bg-card p-5 text-left transition-all hover:border-primary/30 hover:shadow-md hover:shadow-primary/5"
-              >
-                <div className="mb-3 flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary font-bold text-sm shrink-0">
-                    {ws.nom[0].toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-foreground group-hover:text-primary transition-colors text-sm">
-                      {ws.nom}
-                    </p>
-                    <span
-                      className={cn(
-                        "text-xs font-medium px-1.5 py-0.5 rounded-md",
-                        roleColors[ws.monRole],
-                      )}
-                    >
-                      {tRoles(ws.monRole)}
-                    </span>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                </div>
-                {ws.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-1 mb-3">
-                    {ws.description}
-                  </p>
-                )}
-                <div className="flex items-center gap-1 text-xs text-muted-foreground mt-auto">
-                  <Users className="h-3.5 w-3.5" />
-                  <span>{t("membersCount", { count: ws._count.membres })}</span>
-                </div>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 mb-3">
-              <FolderOpen className="h-6 w-6 text-primary" />
-            </div>
+      {/* Bottom row: workspaces + AI quick access */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* My Workspaces — takes 2 cols */}
+        <div className="lg:col-span-2">
+          <div className="mb-4 flex items-center justify-between">
             <h3 className="font-semibold text-foreground">
-              {t("noWorkspaces")}
+              {t("myWorkspaces")}
             </h3>
-            <p className="mt-1 max-w-xs text-sm text-muted-foreground">
-              {t("noWorkspacesDesc")}
-            </p>
             <Button
-              onClick={() => setCreateOpen(true)}
-              className="mt-5 gap-2"
+              variant="outline"
               size="sm"
+              onClick={() => setCreateOpen(true)}
+              className="gap-1.5 text-xs"
             >
-              <Plus className="h-4 w-4" />
-              {t("newWorkspace")}
+              <Plus className="h-3.5 w-3.5" />
+              {t("new")}
             </Button>
           </div>
-        )}
+
+          {wsLoading ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[...Array(4)].map((_, i) => (
+                <div
+                  key={i}
+                  className="h-28 animate-pulse rounded-xl bg-muted"
+                />
+              ))}
+            </div>
+          ) : workspaces && workspaces.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {workspaces.map((ws) => (
+                <button
+                  key={ws.id}
+                  onClick={() => router.push(`/${locale}/workspace/${ws.id}`)}
+                  className="group flex flex-col rounded-xl border border-border bg-card p-5 text-left transition-all hover:border-primary/30 hover:shadow-md hover:shadow-primary/5"
+                >
+                  <div className="mb-3 flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary font-bold text-sm shrink-0">
+                      {ws.nom[0].toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate font-semibold text-foreground group-hover:text-primary transition-colors text-sm">
+                          {ws.nom}
+                        </p>
+                        {ws.plan && ws.plan !== "FREE" && (
+                          <PlanBadge plan={ws.plan} />
+                        )}
+                      </div>
+                      <span
+                        className={cn(
+                          "text-xs font-medium px-1.5 py-0.5 rounded-md",
+                          roleColors[ws.monRole],
+                        )}
+                      >
+                        {tRoles(ws.monRole)}
+                      </span>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                  </div>
+                  {ws.description && (
+                    <p className="text-xs text-muted-foreground line-clamp-1 mb-3">
+                      {ws.description}
+                    </p>
+                  )}
+                  <div className="flex items-center justify-between mt-auto">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Users className="h-3.5 w-3.5" />
+                      <span>
+                        {t("membersCount", { count: ws._count.membres })}
+                      </span>
+                    </div>
+                    {/* Analytics link */}
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/${locale}/workspace/${ws.id}/analytics`);
+                      }}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      <BarChart2 className="h-3.5 w-3.5" />
+                      {t("analytics")}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 mb-3">
+                <FolderOpen className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="font-semibold text-foreground">
+                {t("noWorkspaces")}
+              </h3>
+              <p className="mt-1 max-w-xs text-sm text-muted-foreground">
+                {t("noWorkspacesDesc")}
+              </p>
+              <Button
+                onClick={() => setCreateOpen(true)}
+                className="mt-5 gap-2"
+                size="sm"
+              >
+                <Plus className="h-4 w-4" />
+                {t("newWorkspace")}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* AI quick access — 1 col */}
+        <AIUsageCard
+          workspaces={workspaces}
+          locale={locale}
+          router={router}
+          t={t}
+        />
       </div>
 
       {/* Create workspace modal */}

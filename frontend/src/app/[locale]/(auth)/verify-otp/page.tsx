@@ -1,3 +1,4 @@
+// C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\app\[locale]\(auth)\verify-otp\page.tsx
 "use client"
 
 import Link from "next/link"
@@ -37,7 +38,7 @@ export default function VerifyOtpPage() {
         email: pendingEmail,
         otp,
       })
-      setAuth(res.data.user, res.data.accessToken)
+      setAuth(res.data.user)
       setJustLoggedIn(true)
       router.push(`/${locale}/dashboard`)
     } catch {

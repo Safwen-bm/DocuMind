@@ -218,6 +218,59 @@
     "members": "membres",
     "yourRole": "Votre rôle",
     "lastUpdated": "Mis à jour",
+    "adminLogs": {
+      "title": "Journaux Admin",
+      "restricted": "Admin & Propriétaire uniquement",
+      "refresh": "Actualiser",
+      "export": "Exporter CSV",
+      "updating": "Mise à jour…",
+      "results": "{count} événements",
+      "page": "Page {current} sur {total}",
+      "stats": {
+        "totalEvents": "Total événements",
+        "last24h": "Dernières 24h",
+        "last7d": "7 derniers jours",
+        "activeUsers": "Utilisateurs actifs (7j)",
+        "breakdownLabel": "Répartition des activités — 7 derniers jours"
+      },
+      "filters": {
+        "searchPlaceholder": "Rechercher par nom de cible…",
+        "allActions": "Toutes les actions",
+        "allUsers": "Tous les membres",
+        "to": "au",
+        "clear": "Effacer les filtres",
+        "active": "Filtres"
+      },
+      "actions": {
+        "DOCUMENT_CREE": "A créé un document",
+        "DOCUMENT_MODIFIE": "A modifié un document",
+        "DOCUMENT_SUPPRIME": "A supprimé un document",
+        "DOCUMENT_FAVORI": "A mis en favori un document",
+        "DOSSIER_CREE": "A créé un dossier",
+        "DOSSIER_SUPPRIME": "A supprimé un dossier",
+        "MEMBRE_INVITE": "A invité un membre",
+        "MEMBRE_REJOINT": "A rejoint l'espace de travail",
+        "VERSION_RESTAUREE": "A restauré une version"
+      },
+      "severity": {
+        "info": "Info",
+        "warning": "Avis",
+        "success": "Création",
+        "danger": "Suppression"
+      },
+      "pagination": {
+        "prev": "Précédent",
+        "next": "Suivant"
+      },
+      "accessDenied": {
+        "title": "Accès restreint",
+        "description": "Seuls les Administrateurs et les Propriétaires peuvent consulter les journaux admin de cet espace de travail."
+      },
+      "empty": {
+        "title": "Aucun journal trouvé",
+        "description": "Aucune activité ne correspond aux filtres actuels."
+      }
+    },
     "create": {
       "title": "Créer un espace de travail",
       "subtitle": "Un espace est un espace partagé pour les documents de votre équipe.",
@@ -230,8 +283,11 @@
     },
     "nav": {
       "dashboard": "Tableau de bord",
+      "pricing": "Tarifs",
       "allWorkspaces": "Tous les espaces",
+      "adminLogs": "Journaux Admin",
       "overview": "Vue d'ensemble",
+      "analytics": "Statistiques",
       "members": "Membres",
       "settings": "Paramètres",
       "documents": "Documents",
@@ -241,7 +297,7 @@
       "workspaces": "Espaces de travail",
       "welcomeBack": "Bon retour",
       "activity": "Voici un aperçu de l'activité de vos espaces.",
-      "aiAssistant": "Assistant IA",
+      "aiAssistant": "Secrétaire IA",
       "search": {
         "placeholder": "Rechercher...",
         "tooltip": "Rechercher (Ctrl+K)"
@@ -260,6 +316,7 @@
     "workspace": {
       "overviewNav": "Vue d'ensemble",
       "membersNav": "Membres",
+      "analyticsNav": "Analytiques",
       "settingsNav": "Paramètres",
       "documentsNav": "Documents",
       "backToDashboard": "Tous les espaces",
@@ -357,18 +414,84 @@
         "descPlaceholder": "À quoi sert cet espace ?",
         "cancel": "Annuler",
         "submit": "Créer l'espace"
+      },
+      "thisWeek": "cette semaine",
+      "analytics": "Statistiques",
+      "ai": {
+        "title": "Assistant IA",
+        "description": "Posez des questions sur vos documents directement depuis chaque espace de travail.",
+        "chat": "Chat IA"
+      }
+    },
+    "templates": {
+      "modalTitle": "Nouveau document",
+      "modalSubtitle": "Commencez avec un modèle ou laissez l'IA rédiger pour vous",
+      "tab": {
+        "blank": "Vierge",
+        "templates": "Modèles",
+        "ai": "Générer avec l'IA"
+      },
+      "blank": {
+        "title": "Document vierge",
+        "desc": "Commencez avec une page entièrement vide.",
+        "cta": "Créer un document vierge"
+      },
+      "aiTabHint": "Choisissez une catégorie et l'IA génère un document complet et structuré.",
+      "meetingNotes": {
+        "title": "Compte-rendu de réunion",
+        "desc": "Participants, ordre du jour, décisions et actions avec échéances.",
+        "aiPrompt": "Un modèle de compte-rendu de réunion avec sections pour les participants, l'ordre du jour, les décisions clés et les actions à mener avec responsables et dates."
+      },
+      "projectBrief": {
+        "title": "Brief de projet",
+        "desc": "Objectifs, périmètre, planning et parties prenantes.",
+        "aiPrompt": "Un document de brief projet complet avec vue d'ensemble, objectifs, périmètre inclus et exclu, jalons, parties prenantes et risques."
+      },
+      "technicalSpec": {
+        "title": "Spécification technique",
+        "desc": "Problème, architecture, API et modèle de données.",
+        "aiPrompt": "Une spécification technique couvrant le problème, la solution proposée, l'architecture, les exemples d'API, les modèles de données et les questions ouvertes."
+      },
+      "onboardingGuide": {
+        "title": "Guide d'intégration",
+        "desc": "Configuration, outils et conventions pour les nouveaux membres.",
+        "aiPrompt": "Un guide d'intégration développeur avec checklist première semaine, configuration de l'environnement, outils, conventions de code et contacts clés."
+      },
+      "weeklyReport": {
+        "title": "Rapport hebdomadaire",
+        "desc": "Tâches terminées, en cours, blocages et plan de la semaine suivante.",
+        "aiPrompt": "Un rapport hebdomadaire avec sections travaux terminés, en cours, plan semaine prochaine, blocages et tableau de métriques."
+      },
+      "apiDocumentation": {
+        "title": "Documentation API",
+        "desc": "Endpoints, authentification, exemples et codes d'erreur.",
+        "aiPrompt": "Une documentation REST API avec vue d'ensemble, URL de base, authentification, exemples de requêtes/réponses JSON et tableau des codes d'erreur."
+      },
+      "productRequirements": {
+        "title": "Cahier des charges",
+        "desc": "Problème, user stories, exigences fonctionnelles et métriques.",
+        "aiPrompt": "Un document d'exigences produit avec problème, objectifs, user stories, tableau des exigences fonctionnelles et métriques de succès."
+      },
+      "knowledgeBase": {
+        "title": "Article de base de connaissances",
+        "desc": "Vue d'ensemble, prérequis, guide étape par étape et dépannage.",
+        "aiPrompt": "Un article de base de connaissances avec vue d'ensemble, prérequis, guide étape par étape, problèmes courants et liens vers articles connexes."
       }
     },
     "overview": {
       "newDocument": "Nouveau document",
-      "members": "membres",
+      "membersDesc": "membres",
+      "analyticsDesc": "Activité",
       "settingsDesc": "Nom, description, zone dangereuse",
       "recentDocs": "Documents récents",
       "viewAll": "Voir tout",
       "noDocsYet": "Aucun document",
       "createFirst": "Créer le premier document",
       "recentActivity": "Activité récente",
-      "noActivityYet": "Aucune activité"
+      "noActivityYet": "Aucune activité",
+      "noDocsDesc": "Commencez à créer des documents pour centraliser les connaissances de votre équipe.",
+      "noActivityDesc": "L'activité apparaîtra ici au fur et à mesure que votre équipe travaille.",
+      "created": "créé"
     },
     "documents": {
       "folders": "Dossiers",
@@ -395,11 +518,25 @@
       "uploadSuccess": "{name} importé avec succès",
       "uploadError": "Échec de l'importation. Veuillez réessayer.",
       "uploadSizeError": "Fichier trop volumineux. Taille maximale : 20 Mo.",
-      "uploadTypeError": "Seuls les fichiers PDF, Word (.docx) et Excel (.xlsx) sont supportés.",
+      "uploadTypeError": "Seuls PDF, Word (.docx), Excel (.xlsx) et les images (PNG, JPG, WEBP) sont supportés.",
+      "uploadImageProcessing": "Analyse IA en cours...",
       "download": "Télécharger",
       "downloadAs": "Télécharger en",
       "exportSuccess": "Fichier téléchargé avec succès.",
       "exportError": "Le téléchargement a échoué. Veuillez réessayer.",
+      "moveAutoRenamed": "Renommé en \"{name}\" car un fichier avec ce nom existait déjà dans la destination.",
+      "moveError": "Impossible de déplacer le document.",
+      "noDocsWithTag": "Aucun document avec le tag \"{tag}\"",
+      "rename": {
+        "title": "Renommer le document",
+        "desc": "Choisissez un nouveau nom pour ce document.",
+        "placeholder": "Nom du document",
+        "submit": "Renommer",
+        "cancel": "Annuler",
+        "conflictError": "Un document nommé \"{name}\" existe déjà ici. Choisissez un autre nom ou utilisez le renommage automatique.",
+        "autoRename": "Renommer automatiquement avec suffixe",
+        "genericError": "Impossible de renommer le document. Réessayez."
+      },
       "createDocModal": {
         "title": "Nouveau document",
         "desc": "Donnez un titre à votre document pour commencer.",
@@ -466,6 +603,11 @@
       "comments": "Commentaires",
       "openComments": "Ouvrir les commentaires",
       "closeComments": "Fermer les commentaires",
+      "titleConflict": "Nom déjà utilisé",
+      "titleConflictBanner": "Un document nommé \"{titre}\" existe déjà ici. Renommez-le ou laissez-nous ajouter un suffixe automatiquement.",
+      "titleConflictAutoRename": "Ajouter un suffixe (1)",
+      "titleConflictDismiss": "Je vais le changer moi-même",
+      "saveError": "Impossible d'enregistrer. Réessayez.",
       "versionHistoryPanel": {
         "title": "Historique des versions",
         "noVersions": "Aucune version",
@@ -532,6 +674,45 @@
       "simplifyTitle": "Version simplifiée",
       "simplifyGenerating": "Simplification du document...",
       "simplifyError": "Échec de la simplification. Réessayez."
+    },
+    "analytics": {
+      "title": "Analytiques",
+      "last7Days": "7 derniers jours",
+
+      "stats": {
+        "documents": "Documents totaux",
+        "thisWeek": "cette semaine",
+        "members": "Membres",
+        "active": "actifs",
+        "aiQuestions": "Questions IA"
+      },
+
+      "charts": {
+        "documents7days": "Documents créés — 7 jours",
+        "activity7days": "Activité de l'équipe — 7 jours"
+      },
+
+      "topMembers": {
+        "title": "Membres les plus actifs",
+        "last30Days": "30 derniers jours",
+        "empty": "Aucune activité ce mois-ci"
+      },
+
+      "actions": {
+        "title": "Répartition des actions",
+        "last30Days": "30 derniers jours",
+        "empty": "Aucune activité ce mois-ci",
+
+        "DOCUMENT_CREE": "Documents créés",
+        "DOCUMENT_MODIFIE": "Documents modifiés",
+        "DOCUMENT_SUPPRIME": "Documents supprimés",
+        "DOCUMENT_FAVORI": "Mis en favori",
+        "DOSSIER_CREE": "Dossiers créés",
+        "DOSSIER_SUPPRIME": "Dossiers supprimés",
+        "MEMBRE_INVITE": "Membres invités",
+        "MEMBRE_REJOINT": "Membres rejoints",
+        "VERSION_RESTAUREE": "Versions restaurées"
+      }
     },
     "generate": {
       "button": "Générer avec l'IA",
@@ -613,6 +794,131 @@
       "edit": "Modifier",
       "delete": "Supprimer",
       "resolvedBadge": "Résolu"
+    },
+    "plans": {
+      "usage": {
+        "title": "Utilisation du plan",
+        "documents": "Documents",
+        "members": "Membres",
+        "aiToday": "IA aujourd'hui"
+      },
+      "badges": {
+        "FREE": "Gratuit",
+        "PRO": "Pro",
+        "ENTERPRISE": "Entreprise"
+      },
+      "settings": {
+        "billing": "Facturation",
+        "billingDesc": "Gérez votre abonnement et vos informations de facturation.",
+        "manageBilling": "Gérer la facturation",
+        "upgradePlan": "Mettre à niveau"
+      },
+      "upgrade": {
+        "title": "Mettre à niveau votre plan",
+        "maybeLater": "Plus tard",
+        "viewPricing": "Voir tous les tarifs",
+        "redirecting": "Redirection...",
+        "currentPlan": "Plan actuel",
+        "checkoutError": "Impossible de démarrer le paiement. Réessayez.",
+        "limits": {
+          "PLAN_LIMIT_WORKSPACES": {
+            "title": "Limite d'espaces atteinte",
+            "desc": "Vous avez utilisé votre espace gratuit. Passez à Pro pour créer plus d'espaces."
+          },
+          "PLAN_LIMIT_MEMBERS": {
+            "title": "Limite de membres atteinte",
+            "desc": "Le plan gratuit permet 3 membres par espace. Passez à Pro pour des membres illimités."
+          },
+          "PLAN_LIMIT_DOCUMENTS": {
+            "title": "Limite de documents atteinte",
+            "desc": "Vous avez atteint la limite de documents de ce plan. Mettez à niveau pour en créer plus."
+          },
+          "PLAN_LIMIT_AI": {
+            "title": "Limite IA journalière atteinte",
+            "desc": "Vous avez utilisé vos 10 questions IA du jour. Passez à Pro pour une IA illimitée."
+          }
+        },
+        "pro": {
+          "name": "Pro",
+          "price": "12 $",
+          "period": "par espace / mois",
+          "cta": "Passer à Pro",
+          "features": [
+            "10 espaces de travail",
+            "100 documents par espace",
+            "Membres illimités",
+            "Questions IA illimitées"
+          ]
+        },
+        "enterprise": {
+          "name": "Entreprise",
+          "price": "49 $",
+          "period": "par espace / mois",
+          "cta": "Passer à Entreprise",
+          "features": [
+            "Espaces illimités",
+            "Documents illimités",
+            "Membres illimités",
+            "Questions IA illimitées",
+            "Support prioritaire"
+          ]
+        }
+      },
+      "pricing": {
+        "title": "Tarifs simples et transparents",
+        "subtitle": "Commencez gratuitement. Évoluez selon vos besoins.",
+        "mostPopular": "Le plus populaire",
+        "stripeNote": "Paiements sécurisés par Stripe. Résiliez à tout moment.",
+        "noWorkspaceError": "Créez d'abord un espace de travail avant de mettre à niveau.",
+        "checkoutError": "Impossible de démarrer le paiement. Réessayez.",
+        "free": {
+          "name": "Gratuit",
+          "price": "0 $",
+          "period": "pour toujours",
+          "desc": "Idéal pour démarrer",
+          "cta": "Plan actuel",
+          "features": [
+            "1 espace de travail",
+            "3 membres par espace",
+            "10 documents",
+            "10 questions IA / jour",
+            "Historique des versions",
+            "Analytiques",
+            "Journaux admin"
+          ]
+        },
+        "pro": {
+          "name": "Pro",
+          "price": "12 $",
+          "period": "par espace / mois",
+          "desc": "Pour les équipes en croissance",
+          "cta": "Passer à Pro",
+          "features": [
+            "10 espaces de travail",
+            "Membres illimités",
+            "100 documents",
+            "Questions IA illimitées",
+            "Historique des versions",
+            "Analytiques + Journaux admin"
+          ]
+        },
+        "enterprise": {
+          "name": "Entreprise",
+          "price": "49 $",
+          "period": "par espace / mois",
+          "desc": "Pour les grandes organisations",
+          "cta": "Passer à Entreprise",
+          "features": [
+            "Espaces illimités",
+            "Membres illimités",
+            "Documents illimités",
+            "Questions IA illimitées",
+            "Historique des versions",
+            "Analytiques + Journaux admin",
+            "Support prioritaire"
+          ]
+        }
+      }
     }
   },
   "profile": {

@@ -1,4 +1,3 @@
-// src/components/dashboard/notification-bell.tsx
 "use client";
 
 import { useState } from "react";
@@ -29,8 +28,6 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { fr, ar, enUS } from "date-fns/locale";
 
-// ── Types ──────────────────────────────────────────────────────────────────────
-
 type NotificationType =
   | "INVITATION"
   | "MENTION"
@@ -53,8 +50,6 @@ interface Notification {
   workspaceId: string | null;
 }
 
-// ── Icon + color per type ──────────────────────────────────────────────────────
-
 function getNotifStyle(type: NotificationType) {
   switch (type) {
     case "INVITATION":
@@ -64,11 +59,7 @@ function getNotifStyle(type: NotificationType) {
     case "MENTION":
       return { Icon: AtSign, color: "text-violet-500", bg: "bg-violet-500/10" };
     case "COMMENTAIRE":
-      return {
-        Icon: MessageSquare,
-        color: "text-orange-500",
-        bg: "bg-orange-500/10",
-      };
+      return { Icon: MessageSquare, color: "text-orange-500", bg: "bg-orange-500/10" };
     case "NOUVEAU_DOCUMENT":
       return { Icon: FilePlus, color: "text-primary", bg: "bg-primary/10" };
     case "DOCUMENT_MODIFIE":
@@ -76,11 +67,7 @@ function getNotifStyle(type: NotificationType) {
     case "DOCUMENT_PARTAGE":
       return { Icon: FileText, color: "text-cyan-500", bg: "bg-cyan-500/10" };
     case "ROLE_MODIFIE":
-      return {
-        Icon: ShieldCheck,
-        color: "text-indigo-500",
-        bg: "bg-indigo-500/10",
-      };
+      return { Icon: ShieldCheck, color: "text-indigo-500", bg: "bg-indigo-500/10" };
     case "MEMBRE_RETIRE":
       return { Icon: UserX, color: "text-red-500", bg: "bg-red-500/10" };
     default:
@@ -94,8 +81,6 @@ function getDateLocale(locale: string) {
   return enUS;
 }
 
-// ── Component ──────────────────────────────────────────────────────────────────
-
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -104,18 +89,21 @@ export function NotificationBell() {
   const t = useTranslations("dashboard.notifications");
   const dateLocale = getDateLocale(locale);
 
-  // Poll unread count every 30s — lightweight, always runs in background
+  // ── Count: NO polling interval — socket updates this cache directly ───────
   const { data: countData } = useQuery({
     queryKey: ["notifications-count"],
     queryFn: notificationApi.getUnreadCount,
-    refetchInterval: 30000,
+    // Fetch once on mount for the initial value, then socket takes over
+    staleTime: Infinity,
   });
 
-  // Full list only when popover is open — avoids unnecessary requests
+  // ── Full list: fetch on open, socket prepends new items automatically ─────
   const { data: notifications } = useQuery<Notification[]>({
     queryKey: ["notifications"],
     queryFn: notificationApi.getAll,
     enabled: open,
+    // Keep the list fresh for 1 minute; re-fetches when popover re-opens
+    staleTime: 60_000,
   });
 
   const markReadMutation = useMutation({
@@ -137,9 +125,7 @@ export function NotificationBell() {
   const unreadCount = countData?.count ?? 0;
 
   function handleNotifClick(notif: Notification) {
-    // Mark as read immediately
     if (!notif.lu) markReadMutation.mutate(notif.id);
-    // Navigate to the relevant page if a link exists
     if (notif.lien) {
       setOpen(false);
       router.push(`/${locale}${notif.lien}`);
@@ -160,7 +146,6 @@ export function NotificationBell() {
       </PopoverTrigger>
 
       <PopoverContent align="end" className="w-80 p-0 shadow-lg">
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div className="flex items-center gap-2">
             <Bell className="h-4 w-4 text-primary" />
@@ -187,7 +172,6 @@ export function NotificationBell() {
           )}
         </div>
 
-        {/* List */}
         <div className="max-h-[420px] overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
           {!notifications || notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -219,7 +203,6 @@ export function NotificationBell() {
                         : "cursor-default",
                     )}
                   >
-                    {/* Colored icon */}
                     <div
                       className={cn(
                         "flex h-8 w-8 shrink-0 items-center justify-center rounded-full mt-0.5",
@@ -229,7 +212,6 @@ export function NotificationBell() {
                       <Icon className={cn("h-4 w-4", color)} />
                     </div>
 
-                    {/* Message + date */}
                     <div className="min-w-0 flex-1">
                       <p
                         className={cn(
@@ -249,7 +231,6 @@ export function NotificationBell() {
                       </p>
                     </div>
 
-                    {/* Unread dot */}
                     {!notif.lu && (
                       <div className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" />
                     )}

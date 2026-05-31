@@ -1,3 +1,5 @@
+// C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\components\dashboard\SearchModal.tsx
+
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"

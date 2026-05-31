@@ -1,14 +1,28 @@
+// C:\Users\MSI\Desktop\Projet\pfe-project\backend\src\main.ts
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+const cookieParser = require('cookie-parser');
+const express = require('express');
 
-  // Increase body size limit to 10mb — TipTap JSON can get large with images/tables
-  app.use(require('express').json({ limit: '10mb' }));
-  app.use(require('express').urlencoded({ extended: true, limit: '10mb' }));
+async function bootstrap() {
+  // ── Disable built-in body parser so we can control it per-route ──────────
+  const app = await NestFactory.create(AppModule, {
+    rawBody: true,
+    bodyParser: false,
+  });
+
+  app.use(cookieParser());
+
+  // ── Stripe webhook: raw buffer — must be registered FIRST ────────────────
+  app.use('/plans/webhook', express.raw({ type: '*/*' }));
+
+  // ── Everything else: json + urlencoded ───────────────────────────────────
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
   app.enableCors({
     origin: process.env.FRONTEND_URL || 'http://localhost:3001',

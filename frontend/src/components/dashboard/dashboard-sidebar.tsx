@@ -1,5 +1,7 @@
 "use client";
 
+// frontend/src/components/dashboard/dashboard-sidebar.tsx
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
@@ -19,6 +21,9 @@ import {
   FileText,
   Sparkles,
   Search,
+  BarChart3,
+  ShieldCheck,
+  CreditCard ,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -39,6 +44,7 @@ import { workspaceApi } from "@/lib/workspace.api";
 import { Workspace } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { SearchModal } from "@/components/dashboard/SearchModal";
+import { UsageBanner } from "@/components/plans/UsageBanner";
 
 interface DashboardSidebarProps {
   collapsed: boolean;
@@ -56,13 +62,13 @@ export function DashboardSidebar({
   const router = useRouter();
   const locale = params.locale as string;
   const workspaceId = params.workspaceId as string | undefined;
-  const { user, logout } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
   const t = useTranslations("dashboard.nav");
   const tProfile = useTranslations("profile");
 
   const [searchOpen, setSearchOpen] = useState(false);
 
-  // Ctrl+K global shortcut
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {
@@ -81,13 +87,13 @@ export function DashboardSidebar({
 
   const currentWorkspace = workspaces?.find((w) => w.id === workspaceId);
 
+  // ── Role check — drives admin-logs nav visibility ─────────────────────────
+  const isAdminOrOwner =
+    currentWorkspace?.monRole === "ADMINISTRATEUR" ||
+    currentWorkspace?.monRole === "PROPRIETAIRE";
+
   const initials = user?.nom
-    ? user.nom
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
+    ? user.nom.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "U";
 
   function handleLogout() {
@@ -102,32 +108,20 @@ export function DashboardSidebar({
 
   const workspaceNav = workspaceId
     ? [
-        {
-          href: `/${locale}/workspace/${workspaceId}`,
-          icon: LayoutDashboard,
-          label: t("overview"),
-        },
-        {
-          href: `/${locale}/workspace/${workspaceId}/documents`,
-          icon: FileText,
-          label: t("documentsNav"),
-        },
-        {
-          href: `/${locale}/workspace/${workspaceId}/ai`,
-          icon: Sparkles,
-          label: t("aiAssistant"),
-          highlight: true,
-        },
-        {
-          href: `/${locale}/workspace/${workspaceId}/members`,
-          icon: Users,
-          label: t("members"),
-        },
-        {
-          href: `/${locale}/workspace/${workspaceId}/settings`,
-          icon: Settings,
-          label: t("settings"),
-        },
+        { href: `/${locale}/workspace/${workspaceId}`,               icon: LayoutDashboard, label: t("overview")      },
+        { href: `/${locale}/workspace/${workspaceId}/documents`,      icon: FileText,        label: t("documentsNav")  },
+        { href: `/${locale}/workspace/${workspaceId}/ai`,             icon: Sparkles,        label: t("aiAssistant")   },
+        { href: `/${locale}/workspace/${workspaceId}/analytics`,      icon: BarChart3,       label: t("analytics")     },
+        { href: `/${locale}/workspace/${workspaceId}/members`,        icon: Users,           label: t("members")       },
+        ...(isAdminOrOwner
+          ? [{
+              href: `/${locale}/workspace/${workspaceId}/admin-logs`,
+              icon: ShieldCheck,
+              label: t("adminLogs"),
+              adminOnly: true,
+            }]
+          : []),
+        { href: `/${locale}/workspace/${workspaceId}/settings`,       icon: Settings,        label: t("settings")      },
       ]
     : [];
 
@@ -137,6 +131,7 @@ export function DashboardSidebar({
     label,
     active,
     highlight,
+    adminOnly,
     onClick,
   }: {
     href?: string;
@@ -144,6 +139,7 @@ export function DashboardSidebar({
     label: string;
     active: boolean;
     highlight?: boolean;
+    adminOnly?: boolean;
     onClick?: () => void;
   }) {
     const content = (
@@ -152,21 +148,30 @@ export function DashboardSidebar({
           "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
           collapsed ? "justify-center px-0 w-10 h-10 mx-auto" : "",
           active
-            ? "bg-primary/10 text-primary"
-            : highlight
-              ? "text-primary/70 hover:bg-primary/8 hover:text-primary"
-              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+            ? adminOnly
+              ? "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+              : "bg-primary/10 text-primary"
+            : adminOnly
+              ? "text-rose-500/70 hover:bg-rose-500/8 hover:text-rose-500"
+              : highlight
+                ? "text-primary/70 hover:bg-primary/8 hover:text-primary"
+                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
         )}
       >
         <Icon
           className={cn(
             "h-4 w-4 shrink-0",
-            highlight && !active && "text-primary/60",
+            adminOnly && !active && "text-rose-500/60",
+            adminOnly && active  && "text-rose-500",
+            highlight && !active && !adminOnly && "text-primary/60",
           )}
         />
         {!collapsed && <span>{label}</span>}
-        {!collapsed && highlight && !active && (
+        {!collapsed && highlight && !active && !adminOnly && (
           <span className="ml-auto flex h-1.5 w-1.5 rounded-full bg-primary/60" />
+        )}
+        {!collapsed && adminOnly && !active && (
+          <span className="ml-auto flex h-1.5 w-1.5 rounded-full bg-rose-500/50" />
         )}
       </div>
     );
@@ -175,31 +180,28 @@ export function DashboardSidebar({
       <Tooltip>
         <TooltipTrigger asChild>
           {href ? (
-            <Link href={href} onClick={onClose}>
-              {content}
-            </Link>
+            <Link href={href} onClick={onClose}>{content}</Link>
           ) : (
             <button onClick={onClick}>{content}</button>
           )}
         </TooltipTrigger>
-        <TooltipContent side="right">
-          <p>{label}</p>
-        </TooltipContent>
+        <TooltipContent side="right"><p>{label}</p></TooltipContent>
       </Tooltip>
     ) : href ? (
-      <Link href={href} onClick={onClose}>
-        {content}
-      </Link>
+      <Link href={href} onClick={onClose}>{content}</Link>
     ) : (
-      <button onClick={onClick} className="w-full">
-        {content}
-      </button>
+      <button onClick={onClick} className="w-full">{content}</button>
     );
   }
 
   return (
+    // suppressHydrationWarning: Radix UI generates IDs (radix-_R_...) at
+    // render time. In SSR + multi-tab scenarios the server and client IDs
+    // differ, triggering a hydration mismatch. This attribute tells React to
+    // ignore attribute mismatches on this subtree without affecting behavior.
     <TooltipProvider delayDuration={0}>
       <div
+        suppressHydrationWarning
         className={cn(
           "flex h-full flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300",
           collapsed ? "w-16" : "w-64",
@@ -213,11 +215,7 @@ export function DashboardSidebar({
           )}
         >
           {!collapsed && (
-            <Link
-              href={`/${locale}/dashboard`}
-              className="flex items-center gap-2.5"
-              onClick={onClose}
-            >
+            <Link href={`/${locale}/dashboard`} className="flex items-center gap-2.5" onClick={onClose}>
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shrink-0">
                 <Brain className="h-4 w-4 text-primary-foreground" />
               </div>
@@ -227,17 +225,11 @@ export function DashboardSidebar({
           {collapsed && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Link
-                  href={`/${locale}/dashboard`}
-                  onClick={onClose}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary"
-                >
+                <Link href={`/${locale}/dashboard`} onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
                   <Brain className="h-4 w-4 text-primary-foreground" />
                 </Link>
               </TooltipTrigger>
-              <TooltipContent side="right">
-                <p>DocuMind</p>
-              </TooltipContent>
+              <TooltipContent side="right"><p>DocuMind</p></TooltipContent>
             </Tooltip>
           )}
           {!collapsed && (
@@ -250,9 +242,7 @@ export function DashboardSidebar({
                   <PanelLeftClose className="h-4 w-4" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right">
-                <p>{t("sidebar.collapse")}</p>
-              </TooltipContent>
+              <TooltipContent side="right"><p>{t("sidebar.collapse")}</p></TooltipContent>
             </Tooltip>
           )}
         </div>
@@ -268,25 +258,33 @@ export function DashboardSidebar({
                   <PanelLeftOpen className="h-4 w-4" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right">
-                <p>{t("sidebar.expand")}</p>
-              </TooltipContent>
+              <TooltipContent side="right"><p>{t("sidebar.expand")}</p></TooltipContent>
             </Tooltip>
           </div>
         )}
 
         <div className="flex-1 overflow-y-auto py-3 space-y-1">
           {/* Dashboard */}
-          <div className={cn("px-3", collapsed && "px-2")}>
-            <NavItem
-              href={`/${locale}/dashboard`}
-              icon={LayoutDashboard}
-              label={t("dashboard")}
-              active={pathname === `/${locale}/dashboard`}
-            />
-          </div>
+        <div className={cn("px-3", collapsed && "px-2")}>
+          <NavItem
+            href={`/${locale}/dashboard`}
+            icon={LayoutDashboard}
+            label={t("dashboard")}
+            active={pathname === `/${locale}/dashboard`}
+          />
+        </div>
 
-          {/* ── Search bar — only inside a workspace ── */}
+        {/* Pricing */}
+        <div className={cn("px-3", collapsed && "px-2")}>
+          <NavItem
+            href={`/${locale}/pricing`}
+            icon={CreditCard}
+            label={t("pricing")}
+            active={pathname === `/${locale}/pricing`}
+          />
+        </div>
+
+          {/* Search */}
           {workspaceId && (
             <div className={cn("px-3", collapsed && "px-2")}>
               {collapsed ? (
@@ -299,9 +297,7 @@ export function DashboardSidebar({
                       <Search className="h-4 w-4" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="right">
-                    {t("search.tooltip")}
-                  </TooltipContent>
+                  <TooltipContent side="right">{t("search.tooltip")}</TooltipContent>
                 </Tooltip>
               ) : (
                 <button
@@ -309,12 +305,8 @@ export function DashboardSidebar({
                   className="flex w-full items-center gap-2.5 rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:bg-muted/70 hover:text-foreground"
                 >
                   <Search className="h-3.5 w-3.5 shrink-0" />
-                  <span className="flex-1 text-left text-xs">
-                    {t("search.placeholder")}
-                  </span>
-                  <kbd className="flex items-center rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium">
-                    ⌘K
-                  </kbd>
+                  <span className="flex-1 text-left text-xs">{t("search.placeholder")}</span>
+                  <kbd className="flex items-center rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium">⌘K</kbd>
                 </button>
               )}
             </div>
@@ -332,9 +324,16 @@ export function DashboardSidebar({
                     <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary text-[11px] font-bold text-primary-foreground">
                       {currentWorkspace.nom[0].toUpperCase()}
                     </div>
-                    <span className="truncate text-sm font-semibold text-sidebar-foreground">
-                      {currentWorkspace.nom}
-                    </span>
+                    <div className="min-w-0 flex-1">
+                      <span className="truncate text-sm font-semibold text-sidebar-foreground block">
+                        {currentWorkspace.nom}
+                      </span>
+                      {currentWorkspace.isOwner === false && currentWorkspace.proprietaire && (
+                        <span className="truncate text-[11px] text-muted-foreground block">
+                          {currentWorkspace.proprietaire.nom}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </>
               )}
@@ -349,6 +348,9 @@ export function DashboardSidebar({
                   </TooltipTrigger>
                   <TooltipContent side="right">
                     <p>{currentWorkspace.nom}</p>
+                    {currentWorkspace.isOwner === false && currentWorkspace.proprietaire && (
+                      <p className="text-muted-foreground text-xs">{currentWorkspace.proprietaire.nom}</p>
+                    )}
                   </TooltipContent>
                 </Tooltip>
               )}
@@ -360,14 +362,20 @@ export function DashboardSidebar({
                     icon={item.icon}
                     label={item.label}
                     active={pathname === item.href}
-                    highlight={item.highlight}
+                    adminOnly={(item as any).adminOnly}
                   />
                 ))}
               </div>
             </div>
           )}
+          {/* Usage banner — only when not collapsed */}
+          {!collapsed && workspaceId && (
+            <div className="mt-3">
+              <UsageBanner workspaceId={workspaceId} />
+            </div>
+          )}
 
-          {/* All workspaces */}
+          {/* All workspaces list */}
           {workspaces && workspaces.length > 0 && (
             <div className={cn("pt-4", collapsed ? "px-2" : "px-3")}>
               {!collapsed && (
@@ -375,9 +383,7 @@ export function DashboardSidebar({
                   {t("workspaces")}
                 </p>
               )}
-              {collapsed && (
-                <div className="my-2 h-px bg-sidebar-border mx-2" />
-              )}
+              {collapsed && <div className="my-2 h-px bg-sidebar-border mx-2" />}
               <div className="space-y-0.5">
                 {workspaces.map((ws) =>
                   collapsed ? (
@@ -398,6 +404,9 @@ export function DashboardSidebar({
                       </TooltipTrigger>
                       <TooltipContent side="right">
                         <p>{ws.nom}</p>
+                        {ws.isOwner === false && ws.proprietaire && (
+                          <p className="text-muted-foreground text-xs">{ws.proprietaire.nom}</p>
+                        )}
                       </TooltipContent>
                     </Tooltip>
                   ) : (
@@ -422,7 +431,14 @@ export function DashboardSidebar({
                       >
                         {ws.nom[0].toUpperCase()}
                       </div>
-                      <span className="truncate">{ws.nom}</span>
+                      <div className="min-w-0 flex-1">
+                        <span className="truncate block text-sm leading-tight">{ws.nom}</span>
+                        {ws.isOwner === false && ws.proprietaire && (
+                          <span className="truncate block text-[11px] text-muted-foreground leading-tight">
+                            {ws.proprietaire.nom}
+                          </span>
+                        )}
+                      </div>
                       {workspaceId === ws.id && (
                         <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0" />
                       )}
@@ -435,7 +451,7 @@ export function DashboardSidebar({
         </div>
 
         {/* User footer */}
-        <div className="border-t border-sidebar-border p-3">
+        <div className="border-t border-sidebar-border p-3" suppressHydrationWarning>
           {collapsed ? (
             <DropdownMenu>
               <Tooltip>
@@ -443,46 +459,26 @@ export function DashboardSidebar({
                   <DropdownMenuTrigger asChild>
                     <button className="flex h-10 w-10 mx-auto items-center justify-center rounded-lg hover:bg-sidebar-accent transition-colors">
                       <Avatar className="h-7 w-7">
-                        {user?.avatarUrl && (
-                          <AvatarImage src={user.avatarUrl} alt={user.nom} />
-                        )}
-                        <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                          {initials}
-                        </AvatarFallback>
+                        {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.nom} />}
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">{initials}</AvatarFallback>
                       </Avatar>
                     </button>
                   </DropdownMenuTrigger>
                 </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p>{user?.nom}</p>
-                </TooltipContent>
+                <TooltipContent side="right"><p>{user?.nom}</p></TooltipContent>
               </Tooltip>
-              <DropdownMenuContent
-                side="right"
-                align="end"
-                className="w-56 mb-1"
-              >
+              <DropdownMenuContent side="right" align="end" className="w-56 mb-1">
                 <div className="px-3 py-2">
                   <p className="text-sm font-semibold">{user?.nom}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {user?.email}
-                  </p>
+                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={handleProfileClick}
-                  className="gap-2 cursor-pointer"
-                >
-                  <User className="h-4 w-4" />
-                  {tProfile("title")}
+                <DropdownMenuItem onClick={handleProfileClick} className="gap-2 cursor-pointer">
+                  <User className="h-4 w-4" />{tProfile("title")}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="gap-2 cursor-pointer text-destructive focus:text-destructive"
-                >
-                  <LogOut className="h-4 w-4" />
-                  {tProfile("signOut")}
+                <DropdownMenuItem onClick={handleLogout} className="gap-2 cursor-pointer text-destructive focus:text-destructive">
+                  <LogOut className="h-4 w-4" />{tProfile("signOut")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -491,50 +487,28 @@ export function DashboardSidebar({
               <DropdownMenuTrigger asChild>
                 <button className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-sidebar-accent">
                   <Avatar className="h-8 w-8 shrink-0">
-                    {user?.avatarUrl && (
-                      <AvatarImage src={user.avatarUrl} alt={user.nom} />
-                    )}
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                      {initials}
-                    </AvatarFallback>
+                    {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.nom} />}
+                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">{initials}</AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-sidebar-foreground">
-                      {user?.nom}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {user?.email}
-                    </p>
+                    <p className="truncate text-sm font-medium text-sidebar-foreground">{user?.nom}</p>
+                    <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
                   </div>
                   <Settings2 className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent
-                side="top"
-                align="start"
-                className="w-56 mb-1"
-              >
+              <DropdownMenuContent side="top" align="start" className="w-56 mb-1">
                 <div className="px-3 py-2">
                   <p className="text-sm font-semibold">{user?.nom}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {user?.email}
-                  </p>
+                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={handleProfileClick}
-                  className="gap-2 cursor-pointer"
-                >
-                  <User className="h-4 w-4" />
-                  {tProfile("title")}
+                <DropdownMenuItem onClick={handleProfileClick} className="gap-2 cursor-pointer">
+                  <User className="h-4 w-4" />{tProfile("title")}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="gap-2 cursor-pointer text-destructive focus:text-destructive"
-                >
-                  <LogOut className="h-4 w-4" />
-                  {tProfile("signOut")}
+                <DropdownMenuItem onClick={handleLogout} className="gap-2 cursor-pointer text-destructive focus:text-destructive">
+                  <LogOut className="h-4 w-4" />{tProfile("signOut")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -542,7 +516,6 @@ export function DashboardSidebar({
         </div>
       </div>
 
-      {/* Search modal — global, triggered by sidebar or Ctrl+K */}
       {workspaceId && (
         <SearchModal
           open={searchOpen}

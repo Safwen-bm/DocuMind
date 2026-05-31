@@ -218,6 +218,59 @@
     "members": "members",
     "yourRole": "Your role",
     "lastUpdated": "Updated",
+    "adminLogs": {
+      "title": "Admin Logs",
+      "restricted": "Admin & Owner only",
+      "refresh": "Refresh",
+      "export": "Export CSV",
+      "updating": "Updating...",
+      "results": "{count} events",
+      "page": "Page {current} of {total}",
+      "stats": {
+        "totalEvents": "Total Events",
+        "last24h": "Last 24 hours",
+        "last7d": "Last 7 days",
+        "activeUsers": "Active users (7d)",
+        "breakdownLabel": "Activity breakdown — last 7 days"
+      },
+      "filters": {
+        "searchPlaceholder": "Search by target name…",
+        "allActions": "All actions",
+        "allUsers": "All members",
+        "to": "to",
+        "clear": "Clear filters",
+        "active": "Filters"
+      },
+      "actions": {
+        "DOCUMENT_CREE": "Created a document",
+        "DOCUMENT_MODIFIE": "Edited a document",
+        "DOCUMENT_SUPPRIME": "Deleted a document",
+        "DOCUMENT_FAVORI": "Favourited a document",
+        "DOSSIER_CREE": "Created a folder",
+        "DOSSIER_SUPPRIME": "Deleted a folder",
+        "MEMBRE_INVITE": "Invited a member",
+        "MEMBRE_REJOINT": "Joined the workspace",
+        "VERSION_RESTAUREE": "Restored a version"
+      },
+      "severity": {
+        "info": "Info",
+        "warning": "Notice",
+        "success": "Created",
+        "danger": "Deleted"
+      },
+      "pagination": {
+        "prev": "Previous",
+        "next": "Next"
+      },
+      "accessDenied": {
+        "title": "Access restricted",
+        "description": "Only Administrators and Owners can view admin logs for this workspace."
+      },
+      "empty": {
+        "title": "No logs found",
+        "description": "No activity matches your current filters."
+      }
+    },
     "create": {
       "title": "Create a workspace",
       "subtitle": "A workspace is a shared space for your team's documents.",
@@ -231,7 +284,10 @@
     "nav": {
       "dashboard": "Dashboard",
       "allWorkspaces": "All Workspaces",
+      "pricing": "Pricing",
+      "adminLogs": "Admin Logs",
       "overview": "Overview",
+      "analytics": "Analytics",
       "members": "Members",
       "settings": "Settings",
       "documents": "Documents",
@@ -260,6 +316,7 @@
     "workspace": {
       "overviewNav": "Overview",
       "membersNav": "Members",
+      "analyticsNav": "Analytics",
       "settingsNav": "Settings",
       "documentsNav": "Documents",
       "backToDashboard": "All Workspaces",
@@ -357,18 +414,84 @@
         "descPlaceholder": "What is this workspace for?",
         "cancel": "Cancel",
         "submit": "Create Workspace"
+      },
+      "thisWeek": "this week",
+      "analytics": "Analytics",
+      "ai": {
+        "title": "AI Assistant",
+        "description": "Ask questions about your documents directly from each workspace.",
+        "chat": "AI Chat"
+      }
+    },
+    "templates": {
+      "modalTitle": "New Document",
+      "modalSubtitle": "Start from a template or let AI write it for you",
+      "tab": {
+        "blank": "Blank",
+        "templates": "Templates",
+        "ai": "Generate with AI"
+      },
+      "blank": {
+        "title": "Blank document",
+        "desc": "Start with a completely empty page and write freely.",
+        "cta": "Create blank document"
+      },
+      "aiTabHint": "Pick a template category and AI will generate a complete, structured document for you.",
+      "meetingNotes": {
+        "title": "Meeting Notes",
+        "desc": "Attendees, agenda, decisions, and action items with due dates.",
+        "aiPrompt": "A structured meeting notes template with sections for attendees, agenda items, key decisions made, and action items with owners and due dates."
+      },
+      "projectBrief": {
+        "title": "Project Brief",
+        "desc": "Goals, scope, timeline, and stakeholder overview for a new project.",
+        "aiPrompt": "A comprehensive project brief document with sections for project overview, goals and objectives, in-scope and out-of-scope items, timeline milestones, stakeholders, and risks."
+      },
+      "technicalSpec": {
+        "title": "Technical Specification",
+        "desc": "Problem statement, architecture, API design, and data model.",
+        "aiPrompt": "A technical specification document covering problem statement, proposed solution, system architecture, API design with examples, data models, security considerations, and open questions."
+      },
+      "onboardingGuide": {
+        "title": "Onboarding Guide",
+        "desc": "Step-by-step setup for new team members, tools, and conventions.",
+        "aiPrompt": "A developer onboarding guide covering first-week checklist, environment setup with commands, key tools and access, code conventions, git workflow, and who to contact for different types of questions."
+      },
+      "weeklyReport": {
+        "title": "Weekly Report",
+        "desc": "Completed tasks, work in progress, blockers, and next week plan.",
+        "aiPrompt": "A weekly status report template with sections for completed work, in-progress tasks, next week plan, current blockers and issues, and key metrics table."
+      },
+      "apiDocumentation": {
+        "title": "API Documentation",
+        "desc": "Endpoints, authentication, request/response examples, and error codes.",
+        "aiPrompt": "A REST API documentation page covering overview, base URL, authentication method, endpoint descriptions with request and response examples in JSON, and a complete error code reference table."
+      },
+      "productRequirements": {
+        "title": "Product Requirements",
+        "desc": "Problem statement, user stories, functional requirements, and success metrics.",
+        "aiPrompt": "A product requirements document with problem statement, goals, user stories in standard format, functional and non-functional requirements table, and measurable success metrics."
+      },
+      "knowledgeBase": {
+        "title": "Knowledge Base Article",
+        "desc": "Overview, prerequisites, step-by-step guide, and troubleshooting section.",
+        "aiPrompt": "A knowledge base article with overview, prerequisites, step-by-step instructions, common issues and troubleshooting tips, and links to related articles."
       }
     },
     "overview": {
       "newDocument": "New Document",
-      "members": "members",
+      "membersDesc": "members",
+      "analyticsDesc": "Activity",
       "settingsDesc": "Name, description, danger zone",
       "recentDocs": "Recent Documents",
       "viewAll": "View all",
       "noDocsYet": "No documents yet",
       "createFirst": "Create first document",
       "recentActivity": "Recent Activity",
-      "noActivityYet": "No activity yet"
+      "noActivityYet": "No activity yet",
+      "noDocsDesc": "Start creating documents to capture your team's knowledge.",
+      "noActivityDesc": "Activity will appear here as your team works.",
+      "created": "created"
     },
     "documents": {
       "folders": "Folders",
@@ -395,11 +518,25 @@
       "uploadSuccess": "{name} imported successfully",
       "uploadError": "Upload failed. Please try again.",
       "uploadSizeError": "File too large. Maximum size is 20MB.",
-      "uploadTypeError": "Only PDF, Word (.docx) and Excel (.xlsx) files are supported.",
+      "uploadTypeError": "Only PDF, Word (.docx), Excel (.xlsx) and images (PNG, JPG, WEBP) are supported.",
       "download": "Download",
+      "uploadImageProcessing": "Analyzing with AI...",
       "downloadAs": "Download as",
       "exportSuccess": "File downloaded successfully.",
       "exportError": "Download failed. Please try again.",
+      "moveAutoRenamed": "Renamed to \"{name}\" because a file with that name already existed in the destination.",
+      "moveError": "Could not move the document.",
+      "noDocsWithTag": "No documents tagged \"{tag}\"",
+      "rename": {
+        "title": "Rename document",
+        "desc": "Choose a new name for this document.",
+        "placeholder": "Document name",
+        "submit": "Rename",
+        "cancel": "Cancel",
+        "conflictError": "A document named \"{name}\" already exists here. Choose a different name or use the auto-rename option.",
+        "autoRename": "Auto-rename with suffix",
+        "genericError": "Could not rename the document. Please try again."
+      },
       "createDocModal": {
         "title": "New Document",
         "desc": "Give your document a title to get started.",
@@ -462,6 +599,11 @@
       "comments": "Comments",
       "openComments": "Open comments",
       "closeComments": "Close comments",
+      "titleConflict": "Name already taken",
+      "titleConflictBanner": "A document named \"{titre}\" already exists in this location. Rename it or let us add a suffix automatically.",
+      "titleConflictAutoRename": "Add suffix (1)",
+      "titleConflictDismiss": "I'll change it myself",
+      "saveError": "Failed to save. Please try again.",
       "versionHistoryPanel": {
         "title": "Version History",
         "noVersions": "No versions yet",
@@ -532,6 +674,45 @@
       "simplifyTitle": "Simplified Version",
       "simplifyGenerating": "Simplifying document...",
       "simplifyError": "Failed to simplify. Please try again."
+    },
+    "analytics": {
+      "title": "Analytics",
+      "last7Days": "Last 7 days",
+
+      "stats": {
+        "documents": "Total Documents",
+        "thisWeek": "this week",
+        "members": "Members",
+        "active": "active",
+        "aiQuestions": "AI Questions"
+      },
+
+      "charts": {
+        "documents7days": "Documents created — 7 days",
+        "activity7days": "Team activity — 7 days"
+      },
+
+      "topMembers": {
+        "title": "Most active members",
+        "last30Days": "Last 30 days",
+        "empty": "No activity this month"
+      },
+
+      "actions": {
+        "title": "Action breakdown",
+        "last30Days": "Last 30 days",
+        "empty": "No activity this month",
+
+        "DOCUMENT_CREE": "Documents created",
+        "DOCUMENT_MODIFIE": "Documents edited",
+        "DOCUMENT_SUPPRIME": "Documents deleted",
+        "DOCUMENT_FAVORI": "Favorited",
+        "DOSSIER_CREE": "Folders created",
+        "DOSSIER_SUPPRIME": "Folders deleted",
+        "MEMBRE_INVITE": "Members invited",
+        "MEMBRE_REJOINT": "Members joined",
+        "VERSION_RESTAUREE": "Versions restored"
+      }
     },
     "generate": {
       "button": "Generate with AI",
@@ -613,6 +794,131 @@
       "edit": "Edit",
       "delete": "Delete",
       "resolvedBadge": "Resolved"
+    },
+    "plans": {
+      "usage": {
+        "title": "Plan usage",
+        "documents": "Documents",
+        "members": "Members",
+        "aiToday": "AI today"
+      },
+      "badges": {
+        "FREE": "Free",
+        "PRO": "Pro",
+        "ENTERPRISE": "Enterprise"
+      },
+      "settings": {
+        "billing": "Billing",
+        "billingDesc": "Manage your workspace subscription and billing details.",
+        "manageBilling": "Manage billing",
+        "upgradePlan": "Upgrade plan"
+      },
+      "upgrade": {
+        "title": "Upgrade your plan",
+        "maybeLater": "Maybe later",
+        "viewPricing": "View full pricing",
+        "redirecting": "Redirecting...",
+        "currentPlan": "Current plan",
+        "checkoutError": "Could not start checkout. Please try again.",
+        "limits": {
+          "PLAN_LIMIT_WORKSPACES": {
+            "title": "Workspace limit reached",
+            "desc": "You've used your free workspace. Upgrade to create more workspaces for your teams."
+          },
+          "PLAN_LIMIT_MEMBERS": {
+            "title": "Member limit reached",
+            "desc": "Free workspaces allow up to 3 members. Upgrade to Pro for unlimited team members."
+          },
+          "PLAN_LIMIT_DOCUMENTS": {
+            "title": "Document limit reached",
+            "desc": "You've hit the document limit for this plan. Upgrade to create more documents."
+          },
+          "PLAN_LIMIT_AI": {
+            "title": "Daily AI limit reached",
+            "desc": "You've used all 10 AI questions for today on the Free plan. Upgrade for unlimited AI."
+          }
+        },
+        "pro": {
+          "name": "Pro",
+          "price": "$12",
+          "period": "per workspace / month",
+          "cta": "Upgrade to Pro",
+          "features": [
+            "10 workspaces",
+            "100 documents per workspace",
+            "Unlimited members",
+            "Unlimited AI questions"
+          ]
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "price": "$49",
+          "period": "per workspace / month",
+          "cta": "Upgrade to Enterprise",
+          "features": [
+            "Unlimited workspaces",
+            "Unlimited documents",
+            "Unlimited members",
+            "Unlimited AI questions",
+            "Priority support"
+          ]
+        }
+      },
+      "pricing": {
+        "title": "Simple, transparent pricing",
+        "subtitle": "Start free. Upgrade when your team needs more.",
+        "mostPopular": "Most popular",
+        "stripeNote": "Payments are processed securely by Stripe. Cancel anytime.",
+        "noWorkspaceError": "Create a workspace first before upgrading.",
+        "checkoutError": "Could not start checkout. Please try again.",
+        "free": {
+          "name": "Free",
+          "price": "$0",
+          "period": "forever",
+          "desc": "Perfect for getting started",
+          "cta": "Current plan",
+          "features": [
+            "1 workspace",
+            "3 members per workspace",
+            "10 documents",
+            "10 AI questions / day",
+            "Version history",
+            "Analytics",
+            "Admin logs"
+          ]
+        },
+        "pro": {
+          "name": "Pro",
+          "price": "$12",
+          "period": "per workspace / month",
+          "desc": "For growing teams",
+          "cta": "Upgrade to Pro",
+          "features": [
+            "10 workspaces",
+            "Unlimited members",
+            "100 documents",
+            "Unlimited AI questions",
+            "Version history",
+            "Analytics + Admin logs"
+          ]
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "price": "$49",
+          "period": "per workspace / month",
+          "desc": "For large organizations",
+          "cta": "Upgrade to Enterprise",
+          "features": [
+            "Unlimited workspaces",
+            "Unlimited members",
+            "Unlimited documents",
+            "Unlimited AI questions",
+            "Version history",
+            "Analytics + Admin logs",
+            "Priority support"
+          ]
+        }
+      }
     }
   },
   "profile": {

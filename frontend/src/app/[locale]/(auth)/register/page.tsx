@@ -1,3 +1,5 @@
+// C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\app\[locale]\(auth)\register\page.tsx
+
 "use client";
 
 import Link from "next/link";

@@ -1,4 +1,6 @@
-import { IsString, IsOptional, IsBoolean } from 'class-validator';
+// src/documents/dto/update-document.dto.ts
+
+import { IsOptional, IsString, IsObject } from 'class-validator';
 
 export class UpdateDocumentDto {
   @IsOptional()
@@ -6,9 +8,6 @@ export class UpdateDocumentDto {
   titre?: string;
 
   @IsOptional()
+  @IsObject()
   contenu?: any;
-
-  @IsOptional()
-  @IsBoolean()
-  estFavori?: boolean;
 }

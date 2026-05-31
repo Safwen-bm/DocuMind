@@ -1,3 +1,4 @@
+// C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\app\[locale]\(dashboard)\profile\page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -25,7 +26,7 @@ type Tab = "profile" | "password";
 
 export default function ProfilePage() {
   const t = useTranslations("profile");
-  const { user, setAuth, token } = useAuthStore();
+  const { user, setAuth } = useAuthStore();
   const [tab, setTab] = useState<Tab>("profile");
 
   const [nom, setNom] = useState(user?.nom ?? "");
@@ -52,7 +53,7 @@ export default function ProfilePage() {
     mutationFn: (data?: { nom?: string; avatarUrl?: string }) =>
       userApi.updateProfile(data ?? { nom, avatarUrl: avatarUrl || undefined }),
     onSuccess: (updated) => {
-      if (token) setAuth(updated, token);
+      setAuth(updated);
       setProfileSaved(true);
       setProfileError("");
       setTimeout(() => setProfileSaved(false), 2500);

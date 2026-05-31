@@ -1,5 +1,6 @@
+// C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\store\auth.store.ts
+
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
 
 interface User {
   id: string
@@ -10,57 +11,36 @@ interface User {
 
 interface AuthState {
   user: User | null
-  token: string | null
   isAuthenticated: boolean
   pendingEmail: string | null
   justLoggedIn: boolean
-  setAuth: (user: User, token: string) => void
+  setAuth: (user: User) => void
   setPendingEmail: (email: string) => void
   logout: () => void
   setJustLoggedIn: (val: boolean) => void
 }
 
-function setCookie(name: string, value: string, days = 7) {
-  const expires = new Date(Date.now() + days * 864e5).toUTCString()
-  document.cookie = `${name}=${value}; expires=${expires}; path=/`
-}
+export const useAuthStore = create<AuthState>()((set) => ({
+  user: null,
+  isAuthenticated: false,
+  pendingEmail: null,
+  justLoggedIn: false,
 
-function deleteCookie(name: string) {
-  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`
-}
+  setAuth: (user) => {
+    // No localStorage, no manual cookie — backend set the httpOnly cookie
+    set({ user, isAuthenticated: true })
+  },
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      user: null,
-      token: null,
-      isAuthenticated: false,
-      pendingEmail: null,
-      justLoggedIn: false,
+  setPendingEmail: (email) => set({ pendingEmail: email }),
 
-      setAuth: (user, token) => {
-        localStorage.setItem('access_token', token)
-        setCookie('access_token', token)
-        set({ user, token, isAuthenticated: true })
-      },
+  setJustLoggedIn: (val) => set({ justLoggedIn: val }),
 
-      setPendingEmail: (email) => set({ pendingEmail: email }),
-
-      setJustLoggedIn: (val) => set({ justLoggedIn: val }),
-
-      logout: () => {
-        localStorage.removeItem('access_token')
-        deleteCookie('access_token')
-        set({ user: null, token: null, isAuthenticated: false, pendingEmail: null })
-      },
-    }),
-    {
-      name: 'auth-storage',
-      partialize: (state) => ({
-        user: state.user,
-        token: state.token,
-        isAuthenticated: state.isAuthenticated,
-      }),
-    }
-  )
-)
+  logout: async () => {
+    // Call backend to clear the httpOnly cookie
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    set({ user: null, isAuthenticated: false, pendingEmail: null })
+  },
+}))

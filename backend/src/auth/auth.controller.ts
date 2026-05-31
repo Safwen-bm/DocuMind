@@ -1,4 +1,8 @@
-import { Controller, Post, Get, Body, Query } from '@nestjs/common';
+// C:\Users\MSI\Desktop\Projet\pfe-project\backend\src\auth\auth.controller.ts
+
+import { Controller, Post, Get, Body, Query, Res, UseGuards, Req } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -25,9 +29,20 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
-  @Post('verify-otp')
-  verifyOtp(@Body() dto: VerifyOtpDto) {
-    return this.authService.verifyOtp(dto);
+@Post('verify-otp')
+  async verifyOtp(@Body() dto: VerifyOtpDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.verifyOtp(dto);
+    
+    // Set httpOnly cookie
+    res.cookie('access_token', result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/',
+    });
+
+    return { user: result.user }; // Don't send token in body anymore
   }
 
   @Post('forgot-password')
@@ -38,5 +53,23 @@ export class AuthController {
   @Post('reset-password')
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto.token, dto.nouveauMotDePasse);
+  }
+
+  @Get('me')
+@UseGuards(AuthGuard('jwt'))
+me(@Req() req: Request) {
+  const user = req.user as any;
+  return {
+    id: user.id,
+    nom: user.nom,
+    email: user.email,
+    avatarUrl: user.avatarUrl ?? null,
+  };
+}
+
+  @Post('logout')
+  logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('access_token', { path: '/' });
+    return { message: 'Déconnecté.' };
   }
 }

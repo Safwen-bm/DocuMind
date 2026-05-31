@@ -1,3 +1,4 @@
+// frontend/src/lib/workspace.api.ts
 import api from './api'
 import { Role } from './types'
 
@@ -21,6 +22,26 @@ export const workspaceApi = {
   // Invitations
   invite: (workspaceId: string, data: { email: string; role: Role }) =>
     api.post(`/workspaces/${workspaceId}/invitations`, data).then(r => r.data),
-  acceptInvitation: (token: string) =>
+
+  // Preview: see workspace name + role before accepting
+  previewInvitation: (token: string): Promise<{
+    workspaceId: string
+    workspaceName: string
+    workspaceLogo: string | null
+    role: Role
+    email: string
+    expiresAt: string
+  }> => api.get(`/invitations/preview?token=${token}`).then(r => r.data),
+
+  // Accept: joins the workspace, returns { workspaceId }
+  acceptInvitation: (token: string): Promise<{ workspaceId: string; message: string }> =>
     api.get(`/invitations/accept?token=${token}`).then(r => r.data),
+
+  // Decline: deletes the token
+  declineInvitation: (token: string): Promise<{ message: string }> =>
+    api.delete(`/invitations/decline?token=${token}`).then(r => r.data),
+
+  // Analytics
+  getAnalytics: (id: string) =>
+    api.get(`/workspaces/${id}/analytics`).then((r) => r.data),
 }

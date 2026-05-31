@@ -42,7 +42,6 @@ export class DocumentsController {
     private uploadService: UploadService,
   ) {}
 
-  // ── Create document ───────────────────────────────────────────────────────
   @Post('workspaces/:workspaceId/documents')
   create(
     @Request() req,
@@ -52,7 +51,6 @@ export class DocumentsController {
     return this.documentsService.create(req.user.id, workspaceId, dto);
   }
 
-  // ── List documents (optional folder filter) ───────────────────────────────
   @Get('workspaces/:workspaceId/documents')
   findAll(
     @Request() req,
@@ -62,9 +60,13 @@ export class DocumentsController {
     return this.documentsService.findAll(req.user.id, workspaceId, dossierId);
   }
 
-  // ── Import PDF / DOCX / XLSX → creates a new document ────────────────────
   @Post('workspaces/:workspaceId/documents/upload')
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 20 * 1024 * 1024 },
+    }),
+  )
   uploadDocument(
     @Request() req,
     @Param('workspaceId') workspaceId: string,
@@ -79,7 +81,6 @@ export class DocumentsController {
     );
   }
 
-  // ── Static routes — MUST be before /:id ──────────────────────────────────
   @Get('documents/recent')
   getRecent(@Request() req) {
     return this.documentsService.getRecentAcrossWorkspaces(req.user.id);
@@ -95,7 +96,6 @@ export class DocumentsController {
     return this.documentsService.getStats(req.user.id);
   }
 
-  // ── Document CRUD ─────────────────────────────────────────────────────────
   @Get('documents/:id')
   findOne(@Request() req, @Param('id') id: string) {
     return this.documentsService.findOne(req.user.id, id);
@@ -128,12 +128,17 @@ export class DocumentsController {
     );
   }
 
+  // ── NEW: Personal favori toggle ───────────────────────────────────────────
+  @Post('documents/:id/favori')
+  toggleFavori(@Request() req, @Param('id') id: string) {
+    return this.documentsService.toggleFavori(req.user.id, id);
+  }
+
   @Delete('documents/:id')
   remove(@Request() req, @Param('id') id: string) {
     return this.documentsService.remove(req.user.id, id);
   }
 
-  // ── Versions ──────────────────────────────────────────────────────────────
   @Get('documents/:id/versions')
   getVersions(@Request() req, @Param('id') id: string) {
     return this.documentsService.getVersions(req.user.id, id);
@@ -148,14 +153,8 @@ export class DocumentsController {
     return this.documentsService.restoreVersion(req.user.id, id, versionId);
   }
 
-  // ── Export ────────────────────────────────────────────────────────────────
-
   @Get('documents/:id/export/pdf')
-  async exportPdf(
-    @Request() req,
-    @Param('id') id: string,
-    @Res() res: Response,
-  ) {
+  async exportPdf(@Request() req, @Param('id') id: string, @Res() res: Response) {
     const buffer = await this.exportService.exportPdf(req.user.id, id);
     const doc = await this.documentsService.findOne(req.user.id, id);
     const filename = encodeURIComponent(doc.titre || 'document') + '.pdf';
@@ -168,17 +167,12 @@ export class DocumentsController {
   }
 
   @Get('documents/:id/export/docx')
-  async exportDocx(
-    @Request() req,
-    @Param('id') id: string,
-    @Res() res: Response,
-  ) {
+  async exportDocx(@Request() req, @Param('id') id: string, @Res() res: Response) {
     const buffer = await this.exportService.exportDocx(req.user.id, id);
     const doc = await this.documentsService.findOne(req.user.id, id);
     const filename = encodeURIComponent(doc.titre || 'document') + '.docx';
     res.set({
-      'Content-Type':
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'Content-Disposition': `attachment; filename="${filename}"`,
       'Content-Length': buffer.length,
     });
@@ -186,17 +180,12 @@ export class DocumentsController {
   }
 
   @Get('documents/:id/export/excel')
-  async exportExcel(
-    @Request() req,
-    @Param('id') id: string,
-    @Res() res: Response,
-  ) {
+  async exportExcel(@Request() req, @Param('id') id: string, @Res() res: Response) {
     const buffer = await this.exportService.exportExcel(req.user.id, id);
     const doc = await this.documentsService.findOne(req.user.id, id);
     const filename = encodeURIComponent(doc.titre || 'document') + '.xlsx';
     res.set({
-      'Content-Type':
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': `attachment; filename="${filename}"`,
       'Content-Length': buffer.length,
     });

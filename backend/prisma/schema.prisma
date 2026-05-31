@@ -1,3 +1,5 @@
+// C:\Users\MSI\Desktop\Projet\pfe-project\backend\prisma\schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -19,15 +21,18 @@ model Utilisateur {
   dateCreation       DateTime  @default(now())
   dateMiseAJour      DateTime  @updatedAt
 
-  tokens        TokenVerification[]
-  memberships   MembreWorkspace[]
-  documents     Document[]
-  versions      VersionDocument[]
-  activites     Activite[]
-  notifications Notification[]
-  conversations Conversation[]
-  shareTokens   ShareToken[]
-  commentaires  Commentaire[]       // ← new
+  workspacesOwned Workspace[]         @relation("WorkspaceProprietaire")
+  tokens          TokenVerification[]
+  memberships     MembreWorkspace[]
+  documents       Document[]
+  versions        VersionDocument[]
+  activites       Activite[]
+  notifications   Notification[]
+  conversations   Conversation[]
+  shareTokens     ShareToken[]
+  commentaires    Commentaire[]
+  documentViews   DocumentView[]
+  favoris         DocumentFavori[]
 
   @@map("utilisateurs")
 }
@@ -52,13 +57,15 @@ enum TokenType {
 }
 
 model Workspace {
-  id             String   @id @default(uuid())
+  id             String      @id @default(uuid())
   nom            String
   proprietaireId String
+  proprietaire   Utilisateur @relation("WorkspaceProprietaire", fields: [proprietaireId], references: [id])
   description    String?
   logoUrl        String?
-  dateCreation   DateTime @default(now())
-  dateMiseAJour  DateTime @updatedAt
+  dateCreation   DateTime    @default(now())
+  dateMiseAJour  DateTime    @updatedAt
+  subscription  Subscription?
 
   membres       MembreWorkspace[]
   invitations   Invitation[]
@@ -68,6 +75,7 @@ model Workspace {
   notifications Notification[]
   conversations Conversation[]
 
+  @@unique([proprietaireId, nom])
   @@map("workspaces")
 }
 
@@ -119,6 +127,7 @@ model Dossier {
   enfants   Dossier[]  @relation("DossierEnfants")
   documents Document[]
 
+  @@unique([workspaceId, parentId, nom])
   @@map("dossiers")
 }
 
@@ -129,11 +138,11 @@ model Document {
   workspaceId   String
   dossierId     String?
   authorId      String
-  estFavori     Boolean  @default(false)
   estArchive    Boolean  @default(false)
+  estIndexe     Boolean  @default(false)
+  tags          String[] @default([])
   dateCreation  DateTime @default(now())
   dateMiseAJour DateTime @updatedAt
-  estIndexe     Boolean  @default(false)
 
   chunks        DocumentChunk[]
   conversations Conversation[]
@@ -142,9 +151,26 @@ model Document {
   author        Utilisateur       @relation(fields: [authorId], references: [id])
   versions      VersionDocument[]
   shareTokens   ShareToken[]
-  commentaires  Commentaire[]     // ← new
+  commentaires  Commentaire[]
+  views         DocumentView[]
+  favoris       DocumentFavori[]
 
+  @@unique([workspaceId, dossierId, titre])
   @@map("documents")
+}
+
+// ── NEW: Document read tracking ───────────────────────────────────────────────
+model DocumentView {
+  id           String   @id @default(uuid())
+  documentId   String
+  userId       String
+  lastViewedAt DateTime @default(now())
+
+  document Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     Utilisateur @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, userId]) // one record per user per document, updated on each view
+  @@map("document_views")
 }
 
 model VersionDocument {
@@ -174,8 +200,6 @@ model DocumentChunk {
   @@map("document_chunks")
 }
 
-// ── Comments ──────────────────────────────────────────────────────────────────
-
 model Commentaire {
   id            String   @id @default(uuid())
   contenu       String
@@ -190,8 +214,6 @@ model Commentaire {
 
   @@map("commentaires")
 }
-
-// ── AI Conversations ──────────────────────────────────────────────────────────
 
 model Conversation {
   id            String   @id @default(uuid())
@@ -227,8 +249,6 @@ enum RoleIA {
   UTILISATEUR
   ASSISTANT
 }
-
-// ── Activity & Notifications ──────────────────────────────────────────────────
 
 model Activite {
   id           String     @id @default(uuid())
@@ -275,15 +295,27 @@ model Notification {
 
 enum NotificationType {
   INVITATION
-  MENTION            // @mention dans un commentaire
+  MENTION
   DOCUMENT_PARTAGE
   MEMBRE_REJOINT
-  COMMENTAIRE        // nouveau commentaire sur ton doc
-  NOUVEAU_DOCUMENT   // ← nouveau doc créé dans le workspace
-  DOCUMENT_MODIFIE   // ← doc modifié par un membre
-  ROLE_MODIFIE       // ← ton rôle a été changé
-  MEMBRE_RETIRE      // ← tu as été retiré du workspace
+  COMMENTAIRE
+  NOUVEAU_DOCUMENT
+  DOCUMENT_MODIFIE
+  ROLE_MODIFIE
+  MEMBRE_RETIRE
   SYSTEME
+}
+
+model DocumentFavori {
+  utilisateurId String
+  documentId    String
+  dateAjout     DateTime @default(now())
+
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  document    Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@id([utilisateurId, documentId])
+  @@map("document_favoris")
 }
 
 model ShareToken {
@@ -304,4 +336,40 @@ model ShareToken {
 enum SharePermission {
   READ
   EDIT
+}
+
+enum Plan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+model Subscription {
+  id                   String    @id @default(uuid())
+  workspaceId          String    @unique
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
+  stripePriceId        String?
+  plan                 Plan      @default(FREE)
+  status               String    @default("active")
+  currentPeriodEnd     DateTime?
+  dateCreation         DateTime  @default(now())
+  dateMiseAJour        DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model AiUsage {
+  id            String   @id @default(uuid())
+  userId        String
+  workspaceId   String
+  date          String
+  count         Int      @default(0)
+  dateCreation  DateTime @default(now())
+  dateMiseAJour DateTime @updatedAt
+
+  @@unique([userId, workspaceId, date])
+  @@map("ai_usage")
 }

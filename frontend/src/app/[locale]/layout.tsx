@@ -14,6 +14,9 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "DocuMind",
   description: "AI-powered document management platform",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default async function LocaleLayout({

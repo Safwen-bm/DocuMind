@@ -1,6 +1,8 @@
+// C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\app\[locale]\(dashboard)\workspace\[workspaceId]\documents\_components\GenerateDocModal.tsx
+
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
@@ -23,6 +25,7 @@ interface GenerateDocModalProps {
   /** Optional — if user is inside a folder when they click Generate */
   dossierId?: string;
   /** Called after doc is created so the parent can refetch the list */
+  prefillDescription?: string;
   onCreated?: (documentId: string) => void;
 }
 
@@ -38,6 +41,7 @@ export function GenerateDocModal({
   onClose,
   workspaceId,
   dossierId,
+  prefillDescription,
   onCreated,
 }: GenerateDocModalProps) {
   const t = useTranslations("dashboard");
@@ -48,6 +52,10 @@ export function GenerateDocModal({
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"form" | "generating">("form");
+
+  useEffect(() => {
+    if (prefillDescription) setDescription(prefillDescription);
+  }, [prefillDescription]);
 
   function handleClose() {
     if (loading) return;

@@ -1,9 +1,9 @@
 // src/documents/documents.service.ts
-
 import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActiviteService } from '../activite/activite.service';
@@ -12,6 +12,7 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { ActionType, Prisma, Role } from '@prisma/client';
 import { AiService } from '../ai/ai.service';
+import { PlansService } from '../plans/plans.service';
 
 @Injectable()
 export class DocumentsService {
@@ -19,10 +20,12 @@ export class DocumentsService {
     private prisma: PrismaService,
     private activite: ActiviteService,
     private aiService: AiService,
-    private notifications: NotificationsService, // ← inject NotificationsService
+    private notifications: NotificationsService,
+    private plans: PlansService,
   ) {}
 
-  // ── Helper: notify all workspace members except one user ──────────────────
+  // ── Notify all workspace members except the actor ────────────────────────
+
   private async notifyWorkspaceMembers(
     workspaceId: string,
     excludeUserId: string,
@@ -34,8 +37,6 @@ export class DocumentsService {
       where: { workspaceId },
       select: { utilisateurId: true },
     });
-
-    // Fire-and-forget — don't block the main response
     Promise.all(
       membres
         .filter((m) => m.utilisateurId !== excludeUserId)
@@ -51,18 +52,127 @@ export class DocumentsService {
     ).catch(console.error);
   }
 
+  // ── Attach isFavori flag to a list of documents ──────────────────────────
+
+  private async attachFavori<T extends { id: string }>(
+    docs: T[],
+    userId: string,
+  ): Promise<(T & { isFavori: boolean })[]> {
+    if (docs.length === 0) return docs.map((d) => ({ ...d, isFavori: false }));
+    const docIds = docs.map((d) => d.id);
+    const favoris = await this.prisma.documentFavori.findMany({
+      where: { utilisateurId: userId, documentId: { in: docIds } },
+      select: { documentId: true },
+    });
+    const favoriSet = new Set(favoris.map((f) => f.documentId));
+    return docs.map((d) => ({ ...d, isFavori: favoriSet.has(d.id) }));
+  }
+
+  /**
+   * resolveUniqueTitle
+   * ------------------
+   * Guarantees that no two documents share the same (workspaceId, dossierId, titre).
+   *
+   * Algorithm:
+   *   1. If `titre` is free → return it as-is.
+   *   2. Strip any existing "(N)" suffix from the base name.
+   *   3. Try "base (1)", "base (2)", … until a free slot is found.
+   *
+   * Used on CREATE, MOVE, and silent template injection — never throws.
+   * `excludeId` lets us ignore the document being updated so it doesn't
+   * conflict with itself.
+   *
+   * Examples:
+   *   "report"      (free)          → "report"
+   *   "report"      (taken)         → "report (1)"
+   *   "report (1)"  (taken)         → "report (2)"   ← key fix vs old code
+   *   "report (3)"  (1,2,3 taken)   → "report (4)"
+   */
+  private async resolveUniqueTitle(
+    workspaceId: string,
+    dossierId: string | null,
+    titre: string,
+    excludeId?: string,
+  ): Promise<string> {
+    const exists = async (name: string): Promise<boolean> => {
+      const found = await this.prisma.document.findFirst({
+        where: {
+          workspaceId,
+          dossierId: dossierId ?? null,
+          titre: name,
+          ...(excludeId ? { id: { not: excludeId } } : {}),
+        },
+        select: { id: true },
+      });
+      return !!found;
+    };
+
+    // Fast path — name is already free
+    if (!(await exists(titre))) return titre;
+
+    // Strip any trailing " (N)" so we always work from the clean base
+    const base = titre.replace(/\s*\(\d+\)$/, '').trim();
+
+    let counter = 1;
+    while (await exists(`${base} (${counter})`)) {
+      counter++;
+    }
+    return `${base} (${counter})`;
+  }
+
+  /**
+   * assertTitleAvailableForUpdate
+   * ------------------------------
+   * Called ONLY on an explicit user rename (PATCH /documents/:id with a new
+   * titre).  Throws 409 so the frontend can show a friendly conflict UI and
+   * let the user decide: fix the name manually OR trigger auto-rename.
+   */
+  private async assertTitleAvailableForUpdate(
+    workspaceId: string,
+    dossierId: string | null,
+    titre: string,
+    excludeId: string,
+  ) {
+    const conflict = await this.prisma.document.findFirst({
+      where: {
+        workspaceId,
+        dossierId: dossierId ?? null,
+        titre,
+        id: { not: excludeId },
+      },
+      select: { id: true },
+    });
+    if (conflict) {
+      const location =
+        dossierId ? 'dans ce dossier' : 'à la racine du workspace';
+      throw new ConflictException(
+        `Un document nommé "${titre}" existe déjà ${location}. Choisissez un autre titre.`,
+      );
+    }
+  }
+
+  // ── Create ──────────────────────────────────────────────────────────────
+
   async create(userId: string, workspaceId: string, dto: CreateDocumentDto) {
     await this.checkRole(userId, workspaceId, [
       Role.EDITEUR,
       Role.ADMINISTRATEUR,
       Role.PROPRIETAIRE,
     ]);
+  // ── Plan limit check ──────────────────────────────────────────────────
+    await this.plans.assertCanCreateDocument(workspaceId);
+
+    const rawTitre = dto.titre?.trim() || 'Sans titre';
+    const dossierId = dto.dossierId ?? null;
+
+    // Auto-rename: "text" → "text (1)" → "text (2)" — never throws 409
+    const titre = await this.resolveUniqueTitle(workspaceId, dossierId, rawTitre);
 
     const doc = await this.prisma.document.create({
       data: {
-        titre: dto.titre ?? 'Sans titre',
+        titre,
         workspaceId,
-        dossierId: dto.dossierId ?? null,
+        dossierId,
         authorId: userId,
         contenu: { type: 'doc', content: [] },
       },
@@ -80,7 +190,6 @@ export class DocumentsService {
       cibleId: doc.id,
     });
 
-    // ── Notify all workspace members that a new document was created ──────────
     await this.notifyWorkspaceMembers(
       workspaceId,
       userId,
@@ -89,13 +198,15 @@ export class DocumentsService {
       `/workspace/${workspaceId}/documents/${doc.id}`,
     );
 
-    return doc;
+    return { ...doc, isFavori: false };
   }
+
+  // ── Read ────────────────────────────────────────────────────────────────
 
   async findAll(userId: string, workspaceId: string, dossierId?: string) {
     await this.checkMember(userId, workspaceId);
 
-    return this.prisma.document.findMany({
+    const docs = await this.prisma.document.findMany({
       where: {
         workspaceId,
         estArchive: false,
@@ -105,9 +216,16 @@ export class DocumentsService {
         author: { select: { id: true, nom: true, avatarUrl: true } },
         dossier: { select: { id: true, nom: true } },
         _count: { select: { versions: true } },
+        views: {
+          include: { user: { select: { id: true, nom: true, avatarUrl: true } } },
+          orderBy: { lastViewedAt: 'desc' },
+          take: 5,
+        },
       },
       orderBy: { dateMiseAJour: 'desc' },
     });
+
+    return this.attachFavori(docs, userId);
   }
 
   async findOne(userId: string, documentId: string) {
@@ -117,20 +235,82 @@ export class DocumentsService {
         author: { select: { id: true, nom: true, avatarUrl: true } },
         dossier: { select: { id: true, nom: true } },
         workspace: { select: { id: true, nom: true } },
+        views: {
+          include: { user: { select: { id: true, nom: true, avatarUrl: true } } },
+          orderBy: { lastViewedAt: 'desc' },
+          take: 5,
+        },
       },
     });
 
     if (!doc) throw new NotFoundException('Document introuvable.');
     await this.checkMember(userId, doc.workspaceId);
-    return doc;
+
+    // Track last-viewed — fire and forget, never block the response
+    this.prisma.documentView
+      .upsert({
+        where: { documentId_userId: { documentId, userId } },
+        create: { documentId, userId, lastViewedAt: new Date() },
+        update: { lastViewedAt: new Date() },
+      })
+      .catch(() => {});
+
+    const favori = await this.prisma.documentFavori.findUnique({
+      where: {
+        utilisateurId_documentId: { utilisateurId: userId, documentId },
+      },
+    });
+
+    return { ...doc, isFavori: !!favori };
   }
+
+  // ── Toggle favori ────────────────────────────────────────────────────────
+
+  async toggleFavori(userId: string, documentId: string) {
+    const doc = await this.prisma.document.findUnique({
+      where: { id: documentId },
+      select: { id: true, workspaceId: true, titre: true },
+    });
+    if (!doc) throw new NotFoundException('Document introuvable.');
+    await this.checkMember(userId, doc.workspaceId);
+
+    const existing = await this.prisma.documentFavori.findUnique({
+      where: {
+        utilisateurId_documentId: { utilisateurId: userId, documentId },
+      },
+    });
+
+    if (existing) {
+      await this.prisma.documentFavori.delete({
+        where: {
+          utilisateurId_documentId: { utilisateurId: userId, documentId },
+        },
+      });
+      return { isFavori: false };
+    } else {
+      await this.prisma.documentFavori.create({
+        data: { utilisateurId: userId, documentId },
+      });
+      await this.activite.log({
+        workspaceId: doc.workspaceId,
+        userId,
+        action: ActionType.DOCUMENT_FAVORI,
+        cible: doc.titre,
+        cibleId: doc.id,
+      });
+      return { isFavori: true };
+    }
+  }
+
+  // ── Update (explicit user save — throws 409 on duplicate title) ───────────
+  //
+  // This is the ONLY method that can throw 409.  The frontend catches it and
+  // shows an inline conflict banner with an "auto-rename" button.
 
   async update(userId: string, documentId: string, dto: UpdateDocumentDto) {
     const doc = await this.prisma.document.findUnique({
       where: { id: documentId },
-      include: {
-        author: { select: { id: true, nom: true } },
-      },
+      include: { author: { select: { id: true, nom: true } } },
     });
     if (!doc) throw new NotFoundException('Document introuvable.');
 
@@ -140,13 +320,22 @@ export class DocumentsService {
       Role.PROPRIETAIRE,
     ]);
 
-    // Auto-version on content save
+    // Explicit rename: throw 409 if the chosen name is already taken
+    if (dto.titre !== undefined && dto.titre.trim() !== doc.titre) {
+      await this.assertTitleAvailableForUpdate(
+        doc.workspaceId,
+        doc.dossierId,
+        dto.titre.trim(),
+        documentId,
+      );
+    }
+
+    // Save a version snapshot whenever content changes
     if (dto.contenu !== undefined) {
       const lastVersion = await this.prisma.versionDocument.findFirst({
         where: { documentId },
         orderBy: { numero: 'desc' },
       });
-
       await this.prisma.versionDocument.create({
         data: {
           documentId,
@@ -158,7 +347,6 @@ export class DocumentsService {
           createdById: userId,
         },
       });
-
       await this.activite.log({
         workspaceId: doc.workspaceId,
         userId,
@@ -171,9 +359,8 @@ export class DocumentsService {
     const updated = await this.prisma.document.update({
       where: { id: documentId },
       data: {
-        ...(dto.titre !== undefined && { titre: dto.titre }),
+        ...(dto.titre !== undefined && { titre: dto.titre.trim() }),
         ...(dto.contenu !== undefined && { contenu: dto.contenu }),
-        ...(dto.estFavori !== undefined && { estFavori: dto.estFavori }),
       },
       include: {
         author: { select: { id: true, nom: true, avatarUrl: true } },
@@ -181,26 +368,14 @@ export class DocumentsService {
       },
     });
 
-    if (dto.estFavori !== undefined) {
-      await this.activite.log({
-        workspaceId: doc.workspaceId,
-        userId,
-        action: ActionType.DOCUMENT_FAVORI,
-        cible: doc.titre,
-        cibleId: doc.id,
-      });
-    }
-
-    // ── Notify workspace members of the save (content change only) ────────────
     if (dto.contenu !== undefined) {
+      // Re-index in background — fire and forget
       this.aiService.indexDocument(updated.id).catch(console.error);
 
-      // Get the editor's name for the notification message
       const editor = await this.prisma.utilisateur.findUnique({
         where: { id: userId },
         select: { nom: true },
       });
-
       await this.notifyWorkspaceMembers(
         doc.workspaceId,
         userId,
@@ -210,12 +385,74 @@ export class DocumentsService {
       );
     }
 
-    return updated;
+    const favori = await this.prisma.documentFavori.findUnique({
+      where: {
+        utilisateurId_documentId: { utilisateurId: userId, documentId },
+      },
+    });
+    return { ...updated, isFavori: !!favori };
   }
+
+  // ── Silent update ────────────────────────────────────────────────────────
+  //
+  // Used by:
+  //   • Editor autosave (content only, no title change)
+  //   • Template content injection after create()
+  //
+  // NEVER throws 409: if a title is provided it goes through resolveUniqueTitle
+  // so duplicates are silently suffixed.  This is intentional — by the time
+  // updateSilent is called the document already exists (create() ran first),
+  // so the only scenario where a title conflict could occur is a race condition
+  // with another user creating the same template simultaneously.
+
+  async updateSilent(
+    userId: string,
+    documentId: string,
+    data: { titre?: string; contenu?: any },
+  ) {
+    const doc = await this.prisma.document.findUnique({
+      where: { id: documentId },
+      select: {
+        id: true,
+        workspaceId: true,
+        dossierId: true,
+        titre: true,
+      },
+    });
+    if (!doc) throw new NotFoundException('Document introuvable.');
+
+    await this.checkRole(userId, doc.workspaceId, [
+      Role.EDITEUR,
+      Role.ADMINISTRATEUR,
+      Role.PROPRIETAIRE,
+    ]);
+
+    // Auto-rename if title changed and new name conflicts
+    let titre = data.titre?.trim();
+    if (titre !== undefined && titre !== doc.titre) {
+      titre = await this.resolveUniqueTitle(
+        doc.workspaceId,
+        doc.dossierId,
+        titre,
+        documentId,
+      );
+    }
+
+    return this.prisma.document.update({
+      where: { id: documentId },
+      data: {
+        ...(titre !== undefined && { titre }),
+        ...(data.contenu !== undefined && { contenu: data.contenu }),
+      },
+    });
+  }
+
+  // ── Delete ──────────────────────────────────────────────────────────────
 
   async remove(userId: string, documentId: string) {
     const doc = await this.prisma.document.findUnique({
       where: { id: documentId },
+      select: { id: true, workspaceId: true, titre: true },
     });
     if (!doc) throw new NotFoundException('Document introuvable.');
 
@@ -238,9 +475,12 @@ export class DocumentsService {
     return { message: 'Document supprimé.' };
   }
 
+  // ── Versions ─────────────────────────────────────────────────────────────
+
   async getVersions(userId: string, documentId: string) {
     const doc = await this.prisma.document.findUnique({
       where: { id: documentId },
+      select: { id: true, workspaceId: true },
     });
     if (!doc) throw new NotFoundException('Document introuvable.');
     await this.checkMember(userId, doc.workspaceId);
@@ -254,7 +494,11 @@ export class DocumentsService {
     });
   }
 
-  async restoreVersion(userId: string, documentId: string, versionId: string) {
+  async restoreVersion(
+    userId: string,
+    documentId: string,
+    versionId: string,
+  ) {
     const doc = await this.prisma.document.findUnique({
       where: { id: documentId },
     });
@@ -271,11 +515,11 @@ export class DocumentsService {
     });
     if (!version) throw new NotFoundException('Version introuvable.');
 
+    // Snapshot current content before overwriting
     const lastVersion = await this.prisma.versionDocument.findFirst({
       where: { documentId },
       orderBy: { numero: 'desc' },
     });
-
     if (doc.contenu !== null && doc.contenu !== undefined) {
       await this.prisma.versionDocument.create({
         data: {
@@ -308,6 +552,8 @@ export class DocumentsService {
     return restored;
   }
 
+  // ── Dashboard helpers ────────────────────────────────────────────────────
+
   async getRecentAcrossWorkspaces(userId: string) {
     const memberships = await this.prisma.membreWorkspace.findMany({
       where: { utilisateurId: userId },
@@ -315,7 +561,7 @@ export class DocumentsService {
     });
     const workspaceIds = memberships.map((m) => m.workspaceId);
 
-    return this.prisma.document.findMany({
+    const docs = await this.prisma.document.findMany({
       where: { workspaceId: { in: workspaceIds }, estArchive: false },
       include: {
         author: { select: { id: true, nom: true, avatarUrl: true } },
@@ -324,28 +570,28 @@ export class DocumentsService {
       orderBy: { dateMiseAJour: 'desc' },
       take: 5,
     });
+
+    return this.attachFavori(docs, userId);
   }
 
   async getFavoris(userId: string) {
-    const memberships = await this.prisma.membreWorkspace.findMany({
+    const favoris = await this.prisma.documentFavori.findMany({
       where: { utilisateurId: userId },
-      select: { workspaceId: true },
-    });
-    const workspaceIds = memberships.map((m) => m.workspaceId);
-
-    return this.prisma.document.findMany({
-      where: {
-        workspaceId: { in: workspaceIds },
-        estFavori: true,
-        estArchive: false,
-      },
       include: {
-        author: { select: { id: true, nom: true, avatarUrl: true } },
-        workspace: { select: { id: true, nom: true } },
+        document: {
+          include: {
+            author: { select: { id: true, nom: true, avatarUrl: true } },
+            workspace: { select: { id: true, nom: true } },
+          },
+        },
       },
-      orderBy: { dateMiseAJour: 'desc' },
+      orderBy: { dateAjout: 'desc' },
       take: 5,
     });
+
+    return favoris
+      .filter((f) => !f.document.estArchive)
+      .map((f) => ({ ...f.document, isFavori: true }));
   }
 
   async getStats(userId: string) {
@@ -359,11 +605,13 @@ export class DocumentsService {
       this.prisma.document.count({
         where: { workspaceId: { in: workspaceIds }, estArchive: false },
       }),
-      this.prisma.document.count({
+      this.prisma.documentFavori.count({
         where: {
-          workspaceId: { in: workspaceIds },
-          estFavori: true,
-          estArchive: false,
+          utilisateurId: userId,
+          document: {
+            workspaceId: { in: workspaceIds },
+            estArchive: false,
+          },
         },
       }),
     ]);
@@ -371,30 +619,7 @@ export class DocumentsService {
     return { totalDocuments, totalFavoris };
   }
 
-  async updateSilent(
-    userId: string,
-    documentId: string,
-    data: { titre?: string; contenu?: any },
-  ) {
-    const doc = await this.prisma.document.findUnique({
-      where: { id: documentId },
-    });
-    if (!doc) throw new NotFoundException('Document introuvable.');
-    await this.checkRole(userId, doc.workspaceId, [
-      Role.EDITEUR,
-      Role.ADMINISTRATEUR,
-      Role.PROPRIETAIRE,
-    ]);
-
-    // Silent update — no notification, no version snapshot, no activity log
-    return this.prisma.document.update({
-      where: { id: documentId },
-      data: {
-        ...(data.titre !== undefined && { titre: data.titre }),
-        ...(data.contenu !== undefined && { contenu: data.contenu }),
-      },
-    });
-  }
+  // ── Move ─────────────────────────────────────────────────────────────────
 
   async moveDocument(
     userId: string,
@@ -415,19 +640,30 @@ export class DocumentsService {
     if (dossierId) {
       const dossier = await this.prisma.dossier.findFirst({
         where: { id: dossierId, workspaceId: doc.workspaceId },
+        select: { id: true },
       });
       if (!dossier) throw new NotFoundException('Dossier introuvable.');
     }
 
+    // Auto-rename if a document with the same name already exists in the target
+    const titre = await this.resolveUniqueTitle(
+      doc.workspaceId,
+      dossierId,
+      doc.titre,
+      documentId,
+    );
+
     return this.prisma.document.update({
       where: { id: documentId },
-      data: { dossierId: dossierId ?? null },
+      data: { dossierId: dossierId ?? null, titre },
       include: {
         author: { select: { id: true, nom: true, avatarUrl: true } },
         dossier: { select: { id: true, nom: true } },
       },
     });
   }
+
+  // ── Private helpers ──────────────────────────────────────────────────────
 
   private async checkMember(userId: string, workspaceId: string) {
     const membre = await this.prisma.membreWorkspace.findUnique({
@@ -439,7 +675,11 @@ export class DocumentsService {
     return membre;
   }
 
-  private async checkRole(userId: string, workspaceId: string, roles: Role[]) {
+  private async checkRole(
+    userId: string,
+    workspaceId: string,
+    roles: Role[],
+  ) {
     const membre = await this.checkMember(userId, workspaceId);
     const hierarchy = [
       Role.LECTEUR,

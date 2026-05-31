@@ -17,6 +17,36 @@ export interface SearchResult {
   score: number;
 }
 
+// ── PostgreSQL helper: recursively extract text from TipTap JSON ──────────────
+// This function walks the TipTap JSON tree and concatenates all "text" node
+// values — exactly like the extractText() JS method does on the backend,
+// but done in SQL so the fulltext index works on real content, not JSON keys.
+const EXTRACT_TIPTAP_TEXT = `
+  WITH RECURSIVE tiptap_nodes AS (
+    SELECT jsonb_array_elements(
+      CASE
+        WHEN d.contenu IS NULL THEN '[]'::jsonb
+        WHEN d.contenu->'content' IS NULL THEN '[]'::jsonb
+        ELSE d.contenu->'content'
+      END
+    ) AS node
+    UNION ALL
+    SELECT jsonb_array_elements(
+      CASE
+        WHEN t.node->'content' IS NOT NULL THEN t.node->'content'
+        ELSE '[]'::jsonb
+      END
+    )
+    FROM tiptap_nodes t
+    WHERE t.node->'content' IS NOT NULL
+  )
+  SELECT string_agg(node->>'text', ' ')
+  FROM tiptap_nodes
+  WHERE node->>'type' = 'text'
+    AND node->>'text' IS NOT NULL
+    AND node->>'text' != ''
+`;
+
 @Injectable()
 export class SearchService {
   constructor(
@@ -31,7 +61,6 @@ export class SearchService {
   ): Promise<SearchResult[]> {
     if (!query || query.trim().length < 2) return [];
 
-    // Verify membership
     const membre = await this.prisma.membreWorkspace.findUnique({
       where: {
         utilisateurId_workspaceId: { utilisateurId: userId, workspaceId },
@@ -41,8 +70,10 @@ export class SearchService {
 
     const q = query.trim();
 
-    // ── 1. Full-text search via PostgreSQL ────────────────────────────────
-    // We search in titre + text extracted from contenu JSON
+    // ── 1. Full-text search ───────────────────────────────────────────────
+    // Extracts real text from TipTap JSON recursively.
+    // Searches only in: document title + actual written text content.
+    // No more JSON keys like "type", "doc", "content", "paragraph" polluting results.
     const fulltextResults = await this.prisma.$queryRaw<
       {
         id: string;
@@ -56,31 +87,79 @@ export class SearchService {
         rank: number;
       }[]
     >`
+      WITH doc_text AS (
+        SELECT
+          d.id,
+          d.titre,
+          d.contenu,
+          d."workspaceId",
+          d."dossierId",
+          d."dateMiseAJour",
+          d."estArchive",
+          w.nom AS "workspaceNom",
+          dos.nom AS "dossierNom",
+          -- Extract only real text nodes from TipTap JSON tree
+          COALESCE(
+            (
+              WITH RECURSIVE nodes AS (
+                SELECT jsonb_array_elements(
+                  CASE
+                    WHEN d.contenu IS NULL THEN '[]'::jsonb
+                    WHEN d.contenu->'content' IS NULL THEN '[]'::jsonb
+                    ELSE d.contenu->'content'
+                  END
+                ) AS node
+                UNION ALL
+                SELECT jsonb_array_elements(
+                  CASE
+                    WHEN n.node->'content' IS NOT NULL THEN n.node->'content'
+                    ELSE '[]'::jsonb
+                  END
+                )
+                FROM nodes n
+                WHERE n.node->'content' IS NOT NULL
+              )
+              SELECT string_agg(node->>'text', ' ')
+              FROM nodes
+              WHERE node->>'type' = 'text'
+                AND node->>'text' IS NOT NULL
+                AND trim(node->>'text') != ''
+            ),
+            ''
+          ) AS extracted_text
+        FROM documents d
+        JOIN workspaces w ON w.id = d."workspaceId"
+        LEFT JOIN dossiers dos ON dos.id = d."dossierId"
+        WHERE d."workspaceId" = ${workspaceId}
+          AND d."estArchive" = false
+      )
       SELECT
-        d.id,
-        d.titre,
-        d.contenu,
-        d."workspaceId",
-        w.nom AS "workspaceNom",
-        d."dossierId",
-        dos.nom AS "dossierNom",
-        d."dateMiseAJour",
+        id,
+        titre,
+        contenu,
+        "workspaceId",
+        "workspaceNom",
+        "dossierId",
+        "dossierNom",
+        "dateMiseAJour",
         ts_rank(
-          to_tsvector('simple', d.titre || ' ' || COALESCE(d.contenu::text, '')),
+          to_tsvector('simple', titre || ' ' || extracted_text),
           plainto_tsquery('simple', ${q})
         ) AS rank
-      FROM documents d
-      JOIN workspaces w ON w.id = d."workspaceId"
-      LEFT JOIN dossiers dos ON dos.id = d."dossierId"
-      WHERE d."workspaceId" = ${workspaceId}
-        AND d."estArchive" = false
-        AND to_tsvector('simple', d.titre || ' ' || COALESCE(d.contenu::text, ''))
-            @@ plainto_tsquery('simple', ${q})
+      FROM doc_text
+      WHERE
+        to_tsvector('simple', titre || ' ' || extracted_text)
+        @@ plainto_tsquery('simple', ${q})
       ORDER BY rank DESC
       LIMIT 20
     `;
 
     // ── 2. Semantic search via pgvector ───────────────────────────────────
+    // Threshold raised from 0.3 → 0.70 to eliminate false positives.
+    // At 0.3 almost anything matches. At 0.70 only genuinely relevant
+    // content passes. Adjust downward to 0.65 if you want slightly more results.
+    const SEMANTIC_THRESHOLD = 0.70;
+
     let semanticResults: {
       documentId: string;
       titre: string;
@@ -114,19 +193,18 @@ export class SearchService {
         LEFT JOIN dossiers dos ON dos.id = d."dossierId"
         WHERE d."workspaceId" = ${workspaceId}
           AND d."estArchive" = false
-          AND 1 - (dc.embedding <=> ${vectorStr}::vector) > 0.3
+          AND 1 - (dc.embedding <=> ${vectorStr}::vector) > ${SEMANTIC_THRESHOLD}
         ORDER BY dc.embedding <=> ${vectorStr}::vector
         LIMIT 20
       `;
     } catch (err) {
-      // Semantic search failure is non-blocking — fall back to fulltext only
+      // Semantic failure is non-blocking — fall back to fulltext only
       console.error('Semantic search error:', err);
     }
 
     // ── 3. Merge + deduplicate + rank ─────────────────────────────────────
     const merged = new Map<string, SearchResult>();
 
-    // Add fulltext results
     for (const r of fulltextResults) {
       const excerpt = this.extractExcerpt(r.contenu, q);
       merged.set(r.id, {
@@ -143,14 +221,12 @@ export class SearchService {
       });
     }
 
-    // Merge semantic results — boost score if already found by fulltext
     for (const r of semanticResults) {
       const sim = Number(r.similarity);
       if (merged.has(r.documentId)) {
         const existing = merged.get(r.documentId)!;
         existing.matchType = 'both';
         existing.score += sim * 100;
-        // Use semantic excerpt if it has more context
         if (!existing.excerpt || existing.excerpt.length < 80) {
           existing.excerpt = r.contenu.slice(0, 200) + '...';
         }
@@ -170,38 +246,47 @@ export class SearchService {
       }
     }
 
-    // Sort by score descending, take top 15
     return Array.from(merged.values())
       .sort((a, b) => b.score - a.score)
       .slice(0, 15);
   }
 
-  // Extract a relevant excerpt from TipTap JSON around the query terms
+  // Extract relevant excerpt from TipTap JSON around query term
   private extractExcerpt(contenu: any, query: string): string {
     if (!contenu) return '';
     const text = this.extractText(contenu);
-    if (!text) return '';
+    if (!text || !text.trim()) return '';
 
     const lower = text.toLowerCase();
     const queryLower = query.toLowerCase();
     const idx = lower.indexOf(queryLower);
 
     if (idx === -1) {
+      // Query term not found in extracted text — no excerpt
+      // (this document matched by title only)
       return text.slice(0, 180) + (text.length > 180 ? '...' : '');
     }
 
     const start = Math.max(0, idx - 60);
     const end = Math.min(text.length, idx + queryLower.length + 120);
-    const excerpt = (start > 0 ? '...' : '') + text.slice(start, end) + (end < text.length ? '...' : '');
-    return excerpt;
+    return (
+      (start > 0 ? '...' : '') +
+      text.slice(start, end) +
+      (end < text.length ? '...' : '')
+    );
   }
 
+  // Walk TipTap JSON and extract only actual text node values
   private extractText(node: any): string {
     if (!node) return '';
     if (typeof node === 'string') return node;
     if (node.type === 'text') return node.text || '';
     if (node.content && Array.isArray(node.content)) {
-      return node.content.map((child: any) => this.extractText(child)).join(' ');
+      return node.content
+        .map((child: any) => this.extractText(child))
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
     }
     return '';
   }

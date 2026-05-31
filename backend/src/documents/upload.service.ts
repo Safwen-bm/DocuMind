@@ -7,8 +7,12 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActiviteService } from '../activite/activite.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { AiService } from '../ai/ai.service';
 import { ActionType, Role } from '@prisma/client';
+
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+const MODEL_ID = 'gemini-3.1-flash-lite-preview';
 
 @Injectable()
 export class UploadService {
@@ -16,9 +20,10 @@ export class UploadService {
     private prisma: PrismaService,
     private activite: ActiviteService,
     private aiService: AiService,
+    private notifications: NotificationsService,
   ) {}
 
-  // ── Auth ──────────────────────────────────────────────────────────────────
+  // ── Auth ───────────────────────────────────────────────────────────────────
 
   private async checkRole(userId: string, workspaceId: string) {
     const membre = await this.prisma.membreWorkspace.findUnique({
@@ -62,6 +67,7 @@ export class UploadService {
 
     let contenu: any;
 
+    // ── Route to the right parser based on mime/extension ─────────────────
     if (mime === 'application/pdf' || name.endsWith('.pdf')) {
       contenu = await this.parsePdf(buf);
     } else if (
@@ -80,9 +86,19 @@ export class UploadService {
       name.endsWith('.xls')
     ) {
       contenu = await this.parseExcel(buf);
+    } else if (
+      // ── NEW: Image types handled by Gemini Vision ─────────────────────────
+      mime.startsWith('image/') ||
+      name.endsWith('.png') ||
+      name.endsWith('.jpg') ||
+      name.endsWith('.jpeg') ||
+      name.endsWith('.webp') ||
+      name.endsWith('.gif')
+    ) {
+      contenu = await this.parseImage(buf, mime, titre);
     } else {
       throw new BadRequestException(
-        `Format non supporté: "${file.mimetype}". Utilisez PDF, Word (.docx) ou Excel (.xlsx).`,
+        `Format non supporté: "${file.mimetype}". Utilisez PDF, Word (.docx), Excel (.xlsx) ou une image (PNG, JPG, WEBP).`,
       );
     }
 
@@ -108,13 +124,196 @@ export class UploadService {
       cibleId: doc.id,
     });
 
-    // ── Auto-index: fire and forget — upload returns instantly,
-    //   indexing runs in background. Errors are caught inside indexDocument.
+    // Notify workspace members about the new document
+    this.notifyNewDoc(userId, workspaceId, doc).catch(console.error);
+
+    // Auto-index in background — fire and forget
     this.aiService.indexDocument(doc.id);
 
     return doc;
   }
 
+  // ── Helper: notify members about new doc (fire and forget) ────────────────
+  private async notifyNewDoc(userId: string, workspaceId: string, doc: any) {
+    const membres = await this.prisma.membreWorkspace.findMany({
+      where: { workspaceId },
+      select: { utilisateurId: true },
+    });
+    await Promise.all(
+      membres
+        .filter((m) => m.utilisateurId !== userId)
+        .map((m) =>
+          this.notifications.create({
+            userId: m.utilisateurId,
+            type: 'NOUVEAU_DOCUMENT',
+            message: `${doc.author.nom} a importé un nouveau document "${doc.titre}".`,
+            workspaceId,
+            lien: `/workspace/${workspaceId}/documents/${doc.id}`,
+          }),
+        ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  IMAGE → TipTap via Gemini Vision (gemini-3.1-flash-lite-preview)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  private async parseImage(
+    buf: Buffer,
+    mimeType: string,
+    titre: string,
+  ): Promise<any> {
+    const supportedMimes = [
+      'image/png',
+      'image/jpeg',
+      'image/webp',
+      'image/gif',
+    ];
+    const normalizedMime = supportedMimes.includes(mimeType)
+      ? mimeType
+      : 'image/jpeg';
+    const base64Image = buf.toString('base64');
+
+    const prompt = `You are an expert document analyzer. Analyze this image carefully and extract ALL visible content.
+
+Convert the content into a well-structured document using TipTap JSON format.
+
+STRICT OUTPUT RULES:
+- Output ONLY valid JSON — no explanation, no markdown fences, no preamble
+- Use the exact TipTap schema shown below
+- Preserve the original language of any text you find
+- If the image contains a table, reproduce it as a TipTap table
+- If the image contains a list, reproduce it as bulletList or orderedList
+- If the image contains headings or titles, use heading nodes (level 1, 2, or 3)
+- If the image contains a diagram or illustration with no readable text, describe what you see in a paragraph
+- If the image is a screenshot, describe the UI and extract any visible text
+- Never invent content that is not visible in the image
+
+TipTap JSON schema:
+{
+  "type": "doc",
+  "content": [
+    { "type": "heading", "attrs": { "level": 1 }, "content": [{ "type": "text", "text": "Main Title" }] },
+    { "type": "heading", "attrs": { "level": 2 }, "content": [{ "type": "text", "text": "Section" }] },
+    { "type": "paragraph", "content": [{ "type": "text", "text": "Body text here." }] },
+    { "type": "bulletList", "content": [
+      { "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Item" }] }] }
+    ]},
+    { "type": "orderedList", "content": [
+      { "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Step" }] }] }
+    ]},
+    { "type": "table", "content": [
+      { "type": "tableRow", "content": [
+        { "type": "tableHeader", "attrs": {}, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Col" }] }] }
+      ]},
+      { "type": "tableRow", "content": [
+        { "type": "tableCell", "attrs": {}, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Value" }] }] }
+      ]}
+    ]}
+  ]
+}
+
+Document title context: "${titre}"
+
+Analyze the image and output only the JSON:`;
+
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) {
+      throw new BadRequestException(
+        'Clé API Gemini manquante. Configurez GEMINI_API_KEY dans votre .env.',
+      );
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(
+        `${GEMINI_BASE}/models/${MODEL_ID}:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    inlineData: { mimeType: normalizedMime, data: base64Image },
+                  },
+                  { text: prompt },
+                ],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 4096,
+            },
+          }),
+        },
+      );
+    } catch (err: any) {
+      throw new BadRequestException(
+        `Impossible de contacter Gemini Vision: ${err.message}`,
+      );
+    }
+
+    // ── Read body ONCE — store as text, then parse ─────────────────────────────
+    const responseText = await response.text();
+
+    if (!response.ok) {
+      throw new BadRequestException(
+        `Gemini Vision API error ${response.status}: ${responseText.slice(0, 300)}`,
+      );
+    }
+
+    let data: any;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      throw new BadRequestException('Gemini Vision returned invalid JSON.');
+    }
+
+    const rawText: string =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+
+    if (!rawText.trim()) {
+      return {
+        type: 'doc',
+        content: [
+          {
+            type: 'heading',
+            attrs: { level: 1 },
+            content: [{ type: 'text', text: titre }],
+          },
+          {
+            type: 'paragraph',
+            content: [
+              {
+                type: 'text',
+                text: "L'image n'a pas pu être analysée automatiquement. Vous pouvez ajouter le contenu manuellement.",
+              },
+            ],
+          },
+        ],
+      };
+    }
+
+    // Strip markdown fences Gemini sometimes adds
+    const cleaned = rawText
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```\s*$/i, '')
+      .trim();
+
+    try {
+      const parsed = JSON.parse(cleaned);
+      if (parsed?.type === 'doc' && Array.isArray(parsed?.content)) {
+        return parsed;
+      }
+      throw new Error('Not a TipTap doc');
+    } catch {
+      // Gemini returned readable text but not valid JSON — convert to TipTap
+      return this.textToTiptap(cleaned);
+    }
+  }
   // ══════════════════════════════════════════════════════════════════════════
   //  PDF → TipTap  (pdfjs-dist)
   // ══════════════════════════════════════════════════════════════════════════
@@ -138,7 +337,6 @@ export class UploadService {
 
     for (let i = 1; i <= pdfDoc.numPages; i++) {
       const page = await pdfDoc.getPage(i);
-
       const textContent = await page.getTextContent();
       let lastY: number | null = null;
       let lineText = '';
@@ -341,7 +539,6 @@ export class UploadService {
   // ══════════════════════════════════════════════════════════════════════════
 
   private async parseDocx(buf: Buffer): Promise<any> {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const mammoth = require('mammoth');
     const imageHandler = (image: any) =>
       image.read('base64').then((b64: string) => ({
@@ -371,7 +568,6 @@ export class UploadService {
   // ══════════════════════════════════════════════════════════════════════════
 
   private async parseExcel(buf: Buffer): Promise<any> {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const ExcelJS = require('exceljs');
     const workbook = new ExcelJS.Workbook();
     try {
