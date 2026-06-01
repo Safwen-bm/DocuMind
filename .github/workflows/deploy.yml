@@ -70,7 +70,7 @@ jobs:
       - name: Health check — verify frontend is alive
         run: |
           sleep 30
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ secrets.FRONTEND_URL }}")
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -L "${{ secrets.FRONTEND_URL }}")
           echo "Health check status: $STATUS"
           if [ "$STATUS" != "200" ]; then
             echo "❌ Frontend health check FAILED (status: $STATUS)"
