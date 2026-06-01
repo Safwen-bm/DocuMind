@@ -67,3 +67,4 @@ pids
 # Prisma
 # =========================
 generated/prisma
+.vercel
