@@ -23,6 +23,7 @@ ENV NODE_ENV=production
 ENV PORT=3001
 
 # Next.js standalone mode copies only what's needed
+# copies only what's needed
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
