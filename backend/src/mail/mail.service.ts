@@ -131,6 +131,9 @@ function urlFallback(url: string): string {
 
 @Injectable()
 export class MailService {
+  private get isTest(): boolean {
+    return process.env.NODE_ENV === 'test';
+  }
   private transporter = nodemailer.createTransport({
     host: process.env.MAIL_HOST,
     port: Number(process.env.MAIL_PORT),
@@ -144,6 +147,7 @@ export class MailService {
   // ── 1. Email confirmation ──────────────────────────────────────────────────
 
   async sendConfirmationEmail(email: string, token: string) {
+    if (this.isTest) return;
     const url = `${process.env.FRONTEND_URL}/en/confirm-email?token=${token}`;
 
     const html = shell(`
@@ -167,6 +171,7 @@ export class MailService {
   // ── 2. OTP ────────────────────────────────────────────────────────────────
 
   async sendOtpEmail(email: string, otp: string) {
+    if (this.isTest) return;
     const html = shell(`
       ${badge('Security Code')}
       ${heading('Your verification code')}
@@ -209,6 +214,7 @@ export class MailService {
   // ── 3. Password reset ──────────────────────────────────────────────────────
 
   async sendPasswordResetEmail(email: string, token: string) {
+    if (this.isTest) return;
     const url = `${process.env.FRONTEND_URL}/en/reset-password?token=${token}`;
 
     const html = shell(`
@@ -236,6 +242,7 @@ export class MailService {
     workspaceName: string,
     token: string,
   ) {
+    if (this.isTest) return;
     const url = `${process.env.FRONTEND_URL}/en/invitations/accept?token=${token}`;
     const initial = workspaceName.charAt(0).toUpperCase();
 
