@@ -10,7 +10,8 @@
       }
     }]
   },
-  "transformIgnorePatterns": [
-    "node_modules/(?!(uuid)/)"
-  ]
+  "transformIgnorePatterns": ["node_modules/(?!(uuid)/)"],
+  "testTimeout": 60000,
+  "setupFiles": ["./helpers/jest-setup.ts"],
+  "maxWorkers": 1
 }

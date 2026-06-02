@@ -55,7 +55,9 @@ export class AuthService {
 
     await this.mail.sendConfirmationEmail(user.email, token);
 
-    return { message: 'Compte créé. Vérifiez votre email pour activer votre compte.' };
+    return {
+      message: 'Compte créé. Vérifiez votre email pour activer votre compte.',
+    };
   }
 
   // ── Confirm Email ─────────────────────────────────────────────
@@ -94,11 +96,15 @@ export class AuthService {
 
     // Check account lock
     if (user.verrouillageJusqua && user.verrouillageJusqua > new Date()) {
-      throw new ForbiddenException('Compte verrouillé temporairement. Réessayez dans 15 minutes.');
+      throw new ForbiddenException(
+        'Compte verrouillé temporairement. Réessayez dans 15 minutes.',
+      );
     }
 
     if (!user.estActif) {
-      throw new ForbiddenException('Veuillez confirmer votre email avant de vous connecter.');
+      throw new ForbiddenException(
+        'Veuillez confirmer votre email avant de vous connecter.',
+      );
     }
 
     const passwordValid = await bcrypt.compare(dto.motDePasse, user.motDePasse);
@@ -194,7 +200,10 @@ export class AuthService {
 
     // Always return success — never reveal if email exists
     if (!user) {
-      return { message: 'Si cet email existe, un lien de réinitialisation a été envoyé.' };
+      return {
+        message:
+          'Si cet email existe, un lien de réinitialisation a été envoyé.',
+      };
     }
 
     const token = uuidv4();
@@ -215,7 +224,9 @@ export class AuthService {
 
     await this.mail.sendPasswordResetEmail(user.email, token);
 
-    return { message: 'Si cet email existe, un lien de réinitialisation a été envoyé.' };
+    return {
+      message: 'Si cet email existe, un lien de réinitialisation a été envoyé.',
+    };
   }
 
   // ── Reset Password ────────────────────────────────────────────
@@ -240,5 +251,39 @@ export class AuthService {
     await this.prisma.tokenVerification.delete({ where: { token } });
 
     return { message: 'Mot de passe réinitialisé avec succès.' };
+  }
+
+  // ── Test Login (test/dev only) ────────────────────────────────────────────
+  async testLogin(email: string, password: string, nom: string) {
+    // Find or create the user
+    let user = await this.prisma.utilisateur.findUnique({ where: { email } });
+
+    if (!user) {
+      const hash = await bcrypt.hash(password, 12);
+      user = await this.prisma.utilisateur.create({
+        data: { nom, email, motDePasse: hash, estActif: true },
+      });
+    } else {
+      // Make sure the user is active
+      if (!user.estActif) {
+        await this.prisma.utilisateur.update({
+          where: { id: user.id },
+          data: { estActif: true },
+        });
+      }
+    }
+
+    const payload = { sub: user.id, email: user.email };
+    const accessToken = this.jwt.sign(payload);
+
+    return {
+      accessToken,
+      user: {
+        id: user.id,
+        nom: user.nom,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+      },
+    };
   }
 }

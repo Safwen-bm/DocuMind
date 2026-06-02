@@ -1,6 +1,15 @@
 // C:\Users\MSI\Desktop\Projet\pfe-project\backend\src\auth\auth.controller.ts
 
-import { Controller, Post, Get, Body, Query, Res, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Query,
+  Res,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Response, Request } from 'express';
 import { AuthService } from './auth.service';
@@ -29,10 +38,13 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
-@Post('verify-otp')
-  async verifyOtp(@Body() dto: VerifyOtpDto, @Res({ passthrough: true }) res: Response) {
+  @Post('verify-otp')
+  async verifyOtp(
+    @Body() dto: VerifyOtpDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const result = await this.authService.verifyOtp(dto);
-    
+
     // Set httpOnly cookie
     res.cookie('access_token', result.accessToken, {
       httpOnly: true,
@@ -56,16 +68,48 @@ export class AuthController {
   }
 
   @Get('me')
-@UseGuards(AuthGuard('jwt'))
-me(@Req() req: Request) {
-  const user = req.user as any;
-  return {
-    id: user.id,
-    nom: user.nom,
-    email: user.email,
-    avatarUrl: user.avatarUrl ?? null,
-  };
-}
+  @UseGuards(AuthGuard('jwt'))
+  me(@Req() req: Request) {
+    const user = req.user as any;
+    return {
+      id: user.id,
+      nom: user.nom,
+      email: user.email,
+      avatarUrl: user.avatarUrl ?? null,
+    };
+  }
+
+  /**
+   * TEST-ONLY endpoint — bypasses OTP and email confirmation.
+   * Creates the user if they don't exist, activates them, returns cookie.
+   * DISABLED in production (returns 404).
+   */
+  @Post('test/login')
+  async testLogin(
+    @Body() body: { email: string; password: string; nom?: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (process.env.NODE_ENV === 'production') {
+      res.status(404).json({ message: 'Not found' });
+      return;
+    }
+
+    const result = await this.authService.testLogin(
+      body.email,
+      body.password,
+      body.nom ?? 'Test User',
+    );
+
+    res.cookie('access_token', result.accessToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+
+    return { user: result.user };
+  }
 
   @Post('logout')
   logout(@Res({ passthrough: true }) res: Response) {

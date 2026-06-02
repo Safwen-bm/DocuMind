@@ -6,10 +6,11 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { MailModule } from '../mail/mail.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PlansModule } from '../plans/plans.module';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Module({
   imports: [AuthModule, PrismaModule, MailModule, NotificationsModule, PlansModule],
-  providers: [InvitationsService],
+  providers: [InvitationsService, PrismaService],
   controllers: [InvitationsController],
 })
 export class InvitationsModule {}
