@@ -1,12 +1,6 @@
-"use client"
-
 // frontend/src/app/[locale]/(dashboard)/workspace/[workspaceId]/documents/_components/DocumentGrid.tsx
-//
-// FIXES vs previous version:
-//  1. RenameDocDialog: on 409, shows error banner + "Auto-rename" button that
-//     suffixes the name with (1)/(2)/… and retries — never crashes.
-//  2. RenameDocDialog: error banner is cleared as soon as the user types.
-//  3. All user-visible strings go through next-intl (new keys listed below).
+
+"use client"
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"

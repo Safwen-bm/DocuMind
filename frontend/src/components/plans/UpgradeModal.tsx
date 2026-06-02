@@ -1,3 +1,5 @@
+// \frontend\src\components\plans\UpgradeModal.tsx
+
 "use client";
 
 import { useRouter, useParams } from "next/navigation";

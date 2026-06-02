@@ -1,3 +1,5 @@
+// C:\Users\MSI\Desktop\Projet\pfe-project\backend\src\auth\workspace-role.guard.ts
+
 import {
   Injectable,
   CanActivate,
