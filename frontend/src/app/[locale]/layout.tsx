@@ -16,6 +16,14 @@ export const metadata: Metadata = {
   description: "AI-powered document management platform",
   icons: {
     icon: "/favicon.svg",
+    apple: "/icons/icon-192x192.png",
+  },
+  manifest: "/manifest.json",
+  themeColor: "#0f172a",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "DocuMind",
   },
 };
 

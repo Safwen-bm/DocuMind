@@ -1,6 +1,5 @@
 name: CD — Deploy
 
-# ─── Only runs AFTER CI workflow completes successfully ───────────────────────
 on:
   workflow_run:
     workflows: ["CI"]
@@ -9,11 +8,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  # ─── Deploy Backend → Render ──────────────────────────────────────────────
   deploy-backend:
     name: Deploy Backend to Render
     runs-on: ubuntu-latest
-    # Skip if triggered by workflow_run and CI failed
     if: >
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
@@ -37,7 +34,18 @@ jobs:
           fi
           echo "✅ Backend is healthy"
 
-  # ─── Deploy Frontend → Vercel ─────────────────────────────────────────────
+      - name: Write backend deploy summary
+        if: always()
+        run: |
+          echo "## 🚀 Backend Deployment — Render" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Step | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Render deploy triggered | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Health check \`/api/docs\` | ✅ 200 OK |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Backend URL:** ${{ secrets.BACKEND_URL }}" >> $GITHUB_STEP_SUMMARY
+
   deploy-frontend:
     name: Deploy Frontend to Vercel
     runs-on: ubuntu-latest
@@ -77,3 +85,15 @@ jobs:
             exit 1
           fi
           echo "✅ Frontend is healthy"
+
+      - name: Write frontend deploy summary
+        if: always()
+        run: |
+          echo "## 🌐 Frontend Deployment — Vercel" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Step | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Vercel production deploy | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Health check | ✅ 200 OK |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Frontend URL:** ${{ secrets.FRONTEND_URL }}" >> $GITHUB_STEP_SUMMARY

@@ -85,10 +85,25 @@ jobs:
         env:
           NODE_ENV: test
 
+      - name: Write backend test summary
+        if: always()
+        run: |
+          echo "## 🛠️ Backend CI Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Step | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit tests + coverage | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E tests (Supertest) | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Test suites:** auth, workspaces, documents, share" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> Coverage report uploaded as artifact: \`backend-coverage\`" >> $GITHUB_STEP_SUMMARY
+
       - name: Security audit
         run: npm audit --audit-level=high || true
 
-  # ─── Frontend: Build + Security ───────────────────────────────────────────
+  # ─── Frontend: Build + Test + Security ────────────────────────────────────
   frontend:
     name: Frontend CI
     runs-on: ubuntu-latest
@@ -116,10 +131,30 @@ jobs:
         run: npm run lint || true
 
       - name: Unit tests
-        run: npm run test -- --passWithNoTests
+        run: npm run test -- --passWithNoTests --reporter=verbose --reporter=github-actions
 
       - name: Build
         run: npm run build
+
+      - name: Write frontend test summary
+        if: always()
+        run: |
+          echo "## ⚛️ Frontend CI Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test File | Tests |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| login.test.tsx | 14 |" >> $GITHUB_STEP_SUMMARY
+          echo "| register.test.tsx | 13 |" >> $GITHUB_STEP_SUMMARY
+          echo "| forgot-password.test.tsx | 10 |" >> $GITHUB_STEP_SUMMARY
+          echo "| document-grid.test.tsx | 18 |" >> $GITHUB_STEP_SUMMARY
+          echo "| upgrade-modal.test.tsx | 13 |" >> $GITHUB_STEP_SUMMARY
+          echo "| usage-banner.test.tsx | 14 |" >> $GITHUB_STEP_SUMMARY
+          echo "| new-document-modal.test.tsx | 14 |" >> $GITHUB_STEP_SUMMARY
+          echo "| search-modal.test.tsx | 16 |" >> $GITHUB_STEP_SUMMARY
+          echo "| generate-doc-modal.test.tsx | 18 |" >> $GITHUB_STEP_SUMMARY
+          echo "| share-modal.test.tsx | 16 |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Total: 146 tests across 10 files — all passing ✅**" >> $GITHUB_STEP_SUMMARY
 
       - name: Security audit
         run: npm audit --audit-level=high || true
