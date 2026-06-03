@@ -45,16 +45,16 @@ export class AuthController {
   ) {
     const result = await this.authService.verifyOtp(dto);
 
-    // Set httpOnly cookie
     res.cookie('access_token', result.accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/',
     });
 
-    return { user: result.user }; // Don't send token in body anymore
+    // ← Send token in body so frontend can set its own cookie
+    return { user: result.user, accessToken: result.accessToken };
   }
 
   @Post('forgot-password')
