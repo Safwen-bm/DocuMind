@@ -1,20 +1,20 @@
-// C:\Users\MSI\Desktop\Projet\pfe-project\backend\src\mail\mail.service.ts
+// backend/src/mail/mail.service.ts
 
 import { Injectable } from '@nestjs/common';
-import * as nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 // ── Design tokens — matched to your oklch(0.488 0.243 264.376) primary ────────
-const BRAND = '#3B5BDB'; // indigo-600, closest hex to your primary
-const BRAND_DARK = '#364FC7'; // indigo-700 for button hover
-const BRAND_SOFT = '#EEF2FF'; // indigo-50 for subtle backgrounds
-const BG_PAGE = '#F3F4F6'; // gray-100
+const BRAND = '#3B5BDB';
+const BRAND_DARK = '#364FC7';
+const BRAND_SOFT = '#EEF2FF';
+const BG_PAGE = '#F3F4F6';
 const BG_CARD = '#FFFFFF';
-const TEXT_MAIN = '#111827'; // gray-900
-const TEXT_MUTED = '#6B7280'; // gray-500
-const TEXT_LIGHT = '#9CA3AF'; // gray-400
-const BORDER = '#E5E7EB'; // gray-200
+const TEXT_MAIN = '#111827';
+const TEXT_MUTED = '#6B7280';
+const TEXT_LIGHT = '#9CA3AF';
+const BORDER = '#E5E7EB';
 
-// ── Shell: the outer wrapper every email uses ─────────────────────────────────
+// ── Shell ─────────────────────────────────────────────────────────────────────
 function shell(content: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -32,8 +32,6 @@ function shell(content: string): string {
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
     <tr>
       <td align="center" style="padding:48px 16px 40px;">
-
-        <!-- Max-width container -->
         <table role="presentation" width="100%" style="max-width:520px;" cellspacing="0" cellpadding="0" border="0">
 
           <!-- ── Logo ── -->
@@ -41,13 +39,10 @@ function shell(content: string): string {
             <td align="center" style="padding-bottom:28px;">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                 <tr>
-                  <!-- Rounded square bg-primary -->
                   <td style="background-color:${BRAND};border-radius:10px;width:36px;height:36px;text-align:center;vertical-align:middle;">
-                    <!-- Brain icon (simplified SVG, white) -->
                     <img src="https://api.iconify.design/lucide:brain.svg?color=white&width=20&height=20"
                          width="20" height="20" alt=""
-                         style="display:block;margin:8px auto;"
-                    />
+                         style="display:block;margin:8px auto;"/>
                   </td>
                   <td style="padding-left:10px;vertical-align:middle;">
                     <span style="font-size:20px;font-weight:700;color:${TEXT_MAIN};letter-spacing:-0.4px;">DocuMind</span>
@@ -134,15 +129,23 @@ export class MailService {
   private get isTest(): boolean {
     return process.env.NODE_ENV === 'test';
   }
-  private transporter = nodemailer.createTransport({
-    host: process.env.MAIL_HOST,
-    port: Number(process.env.MAIL_PORT),
-    auth: {
-      user: process.env.MAIL_USER,
-      pass: process.env.MAIL_PASS,
-    },
-    tls: { rejectUnauthorized: false },
-  });
+
+  // Resend client — initialized once
+  private resend = new Resend(process.env.RESEND_API_KEY);
+
+  // Helper to send via Resend
+  private async send(to: string, subject: string, html: string) {
+    const { error } = await this.resend.emails.send({
+      from: process.env.MAIL_FROM ?? 'noreply@saasdocs.com',
+      to,
+      subject,
+      html,
+    });
+
+    if (error) {
+      throw new Error(`Resend error: ${error.message}`);
+    }
+  }
 
   // ── 1. Email confirmation ──────────────────────────────────────────────────
 
@@ -160,42 +163,24 @@ export class MailService {
       ${urlFallback(url)}
     `);
 
-    await this.transporter.sendMail({
-      from: `"DocuMind" <${process.env.MAIL_FROM}>`,
-      to: email,
-      subject: 'Activate your DocuMind account',
-      html,
-    });
+    await this.send(email, 'Activate your DocuMind account', html);
   }
 
   // ── 2. OTP ────────────────────────────────────────────────────────────────
 
   async sendOtpEmail(email: string, otp: string) {
     if (this.isTest) return;
+
     const html = shell(`
       ${badge('Security Code')}
       ${heading('Your verification code')}
       ${paragraph(`Use the code below to complete your sign-in. It's valid for <strong style="color:${TEXT_MAIN};">10 minutes</strong> and can only be used once.`)}
 
-      <!-- Copyable OTP -->
-<div style="
-  margin:24px 0 18px;
-  padding:18px 24px;
-  background:${BRAND_SOFT};
-  border:1px solid #C7D2FE;
-  border-radius:12px;
-  text-align:center;
-">
-  <span style="
-    font-size:32px;
-    font-weight:700;
-    letter-spacing:8px;
-    color:${BRAND};
-    font-family:'Courier New',Courier,monospace;
-  ">
-    ${otp}
-  </span>
-</div>
+      <div style="margin:24px 0 18px;padding:18px 24px;background:${BRAND_SOFT};border:1px solid #C7D2FE;border-radius:12px;text-align:center;">
+        <span style="font-size:32px;font-weight:700;letter-spacing:8px;color:${BRAND};font-family:'Courier New',Courier,monospace;">
+          ${otp}
+        </span>
+      </div>
 
       ${divider()}
       <p style="margin:0;font-size:13px;color:${TEXT_LIGHT};">
@@ -203,12 +188,7 @@ export class MailService {
       </p>
     `);
 
-    await this.transporter.sendMail({
-      from: `"DocuMind" <${process.env.MAIL_FROM}>`,
-      to: email,
-      subject: 'DocuMind verification code',
-      html,
-    });
+    await this.send(email, 'DocuMind verification code', html);
   }
 
   // ── 3. Password reset ──────────────────────────────────────────────────────
@@ -227,12 +207,7 @@ export class MailService {
       ${urlFallback(url)}
     `);
 
-    await this.transporter.sendMail({
-      from: `"DocuMind" <${process.env.MAIL_FROM}>`,
-      to: email,
-      subject: 'Reset your DocuMind password',
-      html,
-    });
+    await this.send(email, 'Reset your DocuMind password', html);
   }
 
   // ── 4. Workspace invitation ────────────────────────────────────────────────
@@ -251,7 +226,6 @@ export class MailService {
       ${heading("You've been invited to collaborate")}
       ${paragraph(`You've been invited to join <strong style="color:${TEXT_MAIN};">${workspaceName}</strong> on DocuMind. Click below to accept and start collaborating with your team.`)}
 
-      <!-- Workspace pill -->
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 8px;">
         <tr>
           <td style="background-color:${BRAND};border-radius:8px;width:40px;height:40px;text-align:center;vertical-align:middle;">
@@ -270,11 +244,10 @@ export class MailService {
       ${urlFallback(url)}
     `);
 
-    await this.transporter.sendMail({
-      from: `"DocuMind" <${process.env.MAIL_FROM}>`,
-      to: email,
-      subject: `You're invited to join ${workspaceName} on DocuMind`,
+    await this.send(
+      email,
+      `You're invited to join ${workspaceName} on DocuMind`,
       html,
-    });
+    );
   }
 }
