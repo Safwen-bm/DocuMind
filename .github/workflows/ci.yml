@@ -115,6 +115,9 @@ jobs:
       - name: Lint (non-blocking)
         run: npm run lint || true
 
+      - name: Unit tests
+        run: npm run test -- --passWithNoTests
+
       - name: Build
         run: npm run build
 

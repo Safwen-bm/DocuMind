@@ -1,3 +1,5 @@
+// frontend\src\lib\document-templates.ts
+
 import {
   FileText,
   Briefcase,
