@@ -1,11 +1,6 @@
 'use client';
 
 // frontend/src/app/[locale]/(dashboard)/workspace/[workspaceId]/documents/[docId]/page.tsx
-//
-// KEY FIX: saveMutation.onError now catches HTTP 409 (duplicate title) and
-// shows an inline conflict banner instead of letting the error propagate to
-// the Next.js error overlay.  The user can either pick a new name or let the
-// app auto-suffix it with (1), (2), … and retry.
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';

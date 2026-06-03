@@ -41,7 +41,9 @@ export const useAuthStore = create<AuthState>()((set) => ({
       credentials: "include",
     });
     // Clear the frontend cookie too
-    document.cookie = "access_token=; path=/; max-age=0; SameSite=Lax";
+    if (typeof window !== 'undefined') {
+      document.cookie = 'access_token=; path=/; max-age=0; SameSite=Lax'
+    }
     set({ user: null, isAuthenticated: false, pendingEmail: null });
   },
 }));

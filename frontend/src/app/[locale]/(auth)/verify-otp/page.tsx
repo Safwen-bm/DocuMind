@@ -42,7 +42,9 @@ export default function VerifyOtpPage() {
       setJustLoggedIn(true);
 
       // Set cookie on THIS domain (Vercel) so middleware can read it
-      document.cookie = `access_token=${res.data.accessToken}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+      if (typeof window !== 'undefined') {
+        document.cookie = `access_token=${res.data.accessToken}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
+      }
 
       router.push(`/${locale}/dashboard`);
     } catch {
