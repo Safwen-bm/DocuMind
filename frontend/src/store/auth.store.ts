@@ -36,13 +36,16 @@ export const useAuthStore = create<AuthState>()((set) => ({
   setJustLoggedIn: (val) => set({ justLoggedIn: val }),
 
   logout: async () => {
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
-      method: "POST",
-      credentials: "include",
-    });
-    // Clear the frontend cookie too
-    if (typeof window !== 'undefined') {
-      document.cookie = 'access_token=; path=/; max-age=0; SameSite=Lax'
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // ignore network errors on logout
+    }
+    if (typeof window !== "undefined") {
+      document.cookie = "access_token=; path=/; max-age=0; SameSite=Lax";
     }
     set({ user: null, isAuthenticated: false, pendingEmail: null });
   },

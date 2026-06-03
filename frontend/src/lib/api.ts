@@ -16,30 +16,19 @@ const PLAN_LIMIT_CODES = [
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // REMOVED the global 401 redirect — useAuthHydration handles it
-    // Only redirect on 401 if NOT the /auth/me call
-    if (
-      error.response?.status === 401 &&
-      typeof window !== 'undefined' &&
-      !error.config?.url?.includes('/auth/me')
-    ) {
-      window.location.href = '/en/login';
-      return Promise.reject(error);
-    }
-
-    if (error.response?.status === 403 && typeof window !== 'undefined') {
+    // No global 401 redirect — useAuthHydration handles session expiry
+    if (error.response?.status === 403 && typeof window !== "undefined") {
       const data = error.response.data;
       if (data?.code && PLAN_LIMIT_CODES.includes(data.code)) {
         usePlansStore.getState().openUpgradeModal({
           code: data.code,
-          currentPlan: data.plan ?? 'FREE',
+          currentPlan: data.plan ?? "FREE",
           workspaceId: data.workspaceId ?? null,
           message: data.message ?? "You've reached a plan limit.",
         });
         return Promise.reject({ ...error, handled: true });
       }
     }
-
     return Promise.reject(error);
   },
 );
