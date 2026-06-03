@@ -1,71 +1,75 @@
 // C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\app\[locale]\(auth)\verify-otp\page.tsx
-"use client"
+"use client";
 
-import Link from "next/link"
-import { useState } from "react"
-import { useRouter, useParams } from "next/navigation"
-import { Brain, Loader2 } from "lucide-react"
-import { useTranslations } from "next-intl"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import api from "@/lib/api"
-import { useAuthStore } from "@/store/auth.store"
+import Link from "next/link";
+import { useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { Brain, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import api from "@/lib/api";
+import { useAuthStore } from "@/store/auth.store";
 
 export default function VerifyOtpPage() {
-  const router = useRouter()
-  const params = useParams()
-  const locale = params.locale as string
-  const t = useTranslations("auth.otp")
-  const tErr = useTranslations("auth.errors")
-  const { pendingEmail, setAuth, setJustLoggedIn } = useAuthStore()
+  const router = useRouter();
+  const params = useParams();
+  const locale = params.locale as string;
+  const t = useTranslations("auth.otp");
+  const tErr = useTranslations("auth.errors");
+  const { pendingEmail, setAuth, setJustLoggedIn } = useAuthStore();
 
-  const [loading, setLoading] = useState(false)
-  const [resending, setResending] = useState(false)
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
+  const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setError("")
-    setLoading(true)
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
-    const formData = new FormData(e.currentTarget)
-    const otp = formData.get("otp") as string
+    const formData = new FormData(e.currentTarget);
+    const otp = formData.get("otp") as string;
 
     try {
       const res = await api.post("/auth/verify-otp", {
         email: pendingEmail,
         otp,
-      })
-      setAuth(res.data.user)
-      setJustLoggedIn(true)
-      router.push(`/${locale}/dashboard`)
+      });
+      setAuth(res.data.user);
+      setJustLoggedIn(true);
+
+      // Set cookie on THIS domain (Vercel) so middleware can read it
+      document.cookie = `access_token=${res.data.accessToken}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+
+      router.push(`/${locale}/dashboard`);
     } catch {
-      setError(tErr("invalidOtp"))
+      setError(tErr("invalidOtp"));
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   async function handleResend() {
-    setResending(true)
-    setError("")
+    setResending(true);
+    setError("");
     try {
       await api.post("/auth/login", {
         email: pendingEmail,
         motDePasse: "resend-trigger",
-      })
+      });
     } catch {
       // Expected to fail on password — we just need the OTP resent
     }
-    setSuccess("Code resent. Check your email.")
-    setResending(false)
+    setSuccess("Code resent. Check your email.");
+    setResending(false);
   }
 
   if (!pendingEmail) {
-    router.push(`/${locale}/login`)
-    return null
+    router.push(`/${locale}/login`);
+    return null;
   }
 
   return (
@@ -123,16 +127,23 @@ export default function VerifyOtpPage() {
             disabled={resending}
             className="font-medium text-primary hover:underline disabled:opacity-50"
           >
-            {resending ? <Loader2 className="inline h-3 w-3 animate-spin" /> : t("resend")}
+            {resending ? (
+              <Loader2 className="inline h-3 w-3 animate-spin" />
+            ) : (
+              t("resend")
+            )}
           </button>
         </div>
 
         <div className="mt-3 text-center">
-          <Link href={`/${locale}/login`} className="text-sm text-muted-foreground hover:underline">
+          <Link
+            href={`/${locale}/login`}
+            className="text-sm text-muted-foreground hover:underline"
+          >
             {t("back")}
           </Link>
         </div>
       </div>
     </div>
-  )
+  );
 }

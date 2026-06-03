@@ -1,23 +1,23 @@
 // C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\store\auth.store.ts
 
-import { create } from 'zustand'
+import { create } from "zustand";
 
 interface User {
-  id: string
-  nom: string
-  email: string
-  avatarUrl: string | null
+  id: string;
+  nom: string;
+  email: string;
+  avatarUrl: string | null;
 }
 
 interface AuthState {
-  user: User | null
-  isAuthenticated: boolean
-  pendingEmail: string | null
-  justLoggedIn: boolean
-  setAuth: (user: User) => void
-  setPendingEmail: (email: string) => void
-  logout: () => void
-  setJustLoggedIn: (val: boolean) => void
+  user: User | null;
+  isAuthenticated: boolean;
+  pendingEmail: string | null;
+  justLoggedIn: boolean;
+  setAuth: (user: User) => void;
+  setPendingEmail: (email: string) => void;
+  logout: () => void;
+  setJustLoggedIn: (val: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()((set) => ({
@@ -28,7 +28,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
 
   setAuth: (user) => {
     // No localStorage, no manual cookie — backend set the httpOnly cookie
-    set({ user, isAuthenticated: true })
+    set({ user, isAuthenticated: true });
   },
 
   setPendingEmail: (email) => set({ pendingEmail: email }),
@@ -36,11 +36,12 @@ export const useAuthStore = create<AuthState>()((set) => ({
   setJustLoggedIn: (val) => set({ justLoggedIn: val }),
 
   logout: async () => {
-    // Call backend to clear the httpOnly cookie
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
-      method: 'POST',
-      credentials: 'include',
+      method: "POST",
+      credentials: "include",
     });
-    set({ user: null, isAuthenticated: false, pendingEmail: null })
+    // Clear the frontend cookie too
+    document.cookie = "access_token=; path=/; max-age=0; SameSite=Lax";
+    set({ user: null, isAuthenticated: false, pendingEmail: null });
   },
-}))
+}));
