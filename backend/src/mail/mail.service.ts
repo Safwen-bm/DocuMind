@@ -131,7 +131,7 @@ export class MailService {
   }
 
   // Resend client — initialized once
-  private resend = new Resend(process.env.RESEND_API_KEY);
+  private resend = new Resend(process.env.RESEND_API_KEY ?? 'fake_key_for_tests');
 
   // Helper to send via Resend
   private async send(to: string, subject: string, html: string) {

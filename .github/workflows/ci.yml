@@ -34,10 +34,8 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres123@localhost:5432/saas_docs_test
       JWT_SECRET: ci_test_jwt_secret_not_real
       FRONTEND_URL: http://localhost:3001
-      MAIL_HOST: smtp.example.com
-      MAIL_PORT: 587
-      MAIL_USER: test@example.com
-      MAIL_PASS: fake_pass
+      RESEND_API_KEY: re_fake_key_for_ci
+      MAIL_FROM: test@example.com
       STRIPE_SECRET_KEY: sk_test_fake
       STRIPE_WEBHOOK_SECRET: whsec_fake
       GEMINI_API_KEY: fake_gemini_key
