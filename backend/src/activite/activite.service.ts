@@ -2,7 +2,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ActionType } from '@prisma/client';
+import { ActionType, Prisma } from '@prisma/client';
 
 export interface AdminLogsQuery {
   page?: number;
@@ -64,7 +64,7 @@ export class ActiviteService {
     const limit = Math.min(100, Math.max(1, query.limit ?? 25));
     const skip = (page - 1) * limit;
 
-    const where: any = { workspaceId };
+    const where: Prisma.ActiviteWhereInput = { workspaceId };
 
     if (query.action) {
       where.action = query.action;
@@ -75,16 +75,17 @@ export class ActiviteService {
     }
 
     if (query.dateFrom || query.dateTo) {
-      where.dateCreation = {};
+      const dateFilter: Prisma.DateTimeFilter = {};
       if (query.dateFrom) {
-        where.dateCreation.gte = new Date(query.dateFrom);
+        dateFilter.gte = new Date(query.dateFrom);
       }
       if (query.dateTo) {
         // Include the full end day
         const end = new Date(query.dateTo);
         end.setHours(23, 59, 59, 999);
-        where.dateCreation.lte = end;
+        dateFilter.lte = end;
       }
+      where.dateCreation = dateFilter;
     }
 
     // Search on cible (target name / document title)

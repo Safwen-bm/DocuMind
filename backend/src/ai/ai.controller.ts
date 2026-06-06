@@ -57,6 +57,10 @@ class DocumentActionDto {
   action: 'decisions' | 'tasks' | 'keypoints' | 'structure';
 }
 
+interface AuthenticatedRequest extends Express.Request {
+  user: { id: string; email: string };
+}
+
 @UseGuards(JwtGuard)
 @Controller('ai')
 export class AiController {
@@ -64,31 +68,31 @@ export class AiController {
 
   // ── Standard RAG chat ─────────────────────────────────────────────────────
   @Post('chat')
-  chat(@Request() req, @Body() dto: ChatDto) {
+  chat(@Request() req: AuthenticatedRequest, @Body() dto: ChatDto) {
     return this.aiService.chat(req.user.id, dto.workspaceId, dto.question, dto.docId, dto.conversationId);
   }
 
   // ── Multi-doc RAG chat ────────────────────────────────────────────────────
   @Post('chat-multi')
-  chatMultiDoc(@Request() req, @Body() dto: ChatMultiDocDto) {
+  chatMultiDoc(@Request() req: AuthenticatedRequest, @Body() dto: ChatMultiDocDto) {
     return this.aiService.chatMultiDoc(req.user.id, dto.workspaceId, dto.question, dto.documentIds, dto.conversationId);
   }
 
   // ── Workspace secretary chat ──────────────────────────────────────────────
   @Post('chat-workspace')
-  chatWorkspace(@Request() req, @Body() dto: ChatWorkspaceDto) {
+  chatWorkspace(@Request() req: AuthenticatedRequest, @Body() dto: ChatWorkspaceDto) {
     return this.aiService.chatWorkspace(req.user.id, dto.workspaceId, dto.question, dto.conversationId);
   }
 
   // ── Summarize ─────────────────────────────────────────────────────────────
   @Post('summarize/:docId')
-  summarize(@Request() req, @Param('docId') docId: string) {
+  summarize(@Request() req: AuthenticatedRequest, @Param('docId') docId: string) {
     return this.aiService.summarize(req.user.id, docId);
   }
 
   // ── Simplify ──────────────────────────────────────────────────────────────
   @Post('simplify/:docId')
-  simplify(@Request() req, @Param('docId') docId: string) {
+  simplify(@Request() req: AuthenticatedRequest, @Param('docId') docId: string) {
     return this.aiService.simplify(req.user.id, docId);
   }
 
@@ -101,41 +105,39 @@ export class AiController {
 
   // ── Document action buttons ───────────────────────────────────────────────
   @Post('actions/:docId')
-  async documentActions(@Request() req, @Param('docId') docId: string, @Body() dto: DocumentActionDto) {
+  async documentActions(@Request() req: AuthenticatedRequest, @Param('docId') docId: string, @Body() dto: DocumentActionDto) {
     const result = await this.aiService.documentActions(req.user.id, docId, dto.action);
     return { result };
   }
 
   // ── Generate document ─────────────────────────────────────────────────────
   @Post('generate')
-  generate(@Request() req, @Body() dto: GenerateDocDto) {
+  generate(@Request() req: AuthenticatedRequest, @Body() dto: GenerateDocDto) {
     return this.aiService.generateDocument(req.user.id, dto.workspaceId, dto.description, dto.titre, dto.dossierId);
   }
 
   // ── Reindex workspace ─────────────────────────────────────────────────────
   @Post('reindex/:workspaceId')
-  reindex(@Request() req, @Param('workspaceId') workspaceId: string) {
+  reindex(@Request() req: AuthenticatedRequest, @Param('workspaceId') workspaceId: string) {
     return this.aiService.reindexWorkspace(req.user.id, workspaceId);
   }
 
   // ── List conversations ────────────────────────────────────────────────────
   @Get('conversations/:workspaceId')
-  getConversations(@Request() req, @Param('workspaceId') workspaceId: string, @Query('docId') docId?: string) {
+  getConversations(@Request() req: AuthenticatedRequest, @Param('workspaceId') workspaceId: string, @Query('docId') docId?: string) {
     return this.aiService.getConversations(req.user.id, workspaceId, docId);
   }
 
   // ── Get messages ──────────────────────────────────────────────────────────
   @Get('conversations/:workspaceId/:conversationId/messages')
-  getMessages(@Request() req, @Param('conversationId') conversationId: string) {
+  getMessages(@Request() req: AuthenticatedRequest, @Param('conversationId') conversationId: string) {
     return this.aiService.getConversationMessages(req.user.id, conversationId);
   }
 
-  // ── NEW: Export conversation as PDF ──────────────────────────────────────
-  // GET /ai/conversations/:conversationId/export
-  // Returns a PDF buffer with the full conversation (questions + answers + sources)
+  // ── Export conversation as PDF ────────────────────────────────────────────
   @Get('conversations/:conversationId/export')
   async exportConversation(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Param('conversationId') conversationId: string,
     @Res() res: Response,
   ) {
@@ -152,7 +154,7 @@ export class AiController {
   // ── Delete conversation ───────────────────────────────────────────────────
   @Delete('conversations/:conversationId')
   @HttpCode(HttpStatus.OK)
-  deleteConversation(@Request() req, @Param('conversationId') conversationId: string) {
+  deleteConversation(@Request() req: AuthenticatedRequest, @Param('conversationId') conversationId: string) {
     return this.aiService.deleteConversation(req.user.id, conversationId);
   }
 }

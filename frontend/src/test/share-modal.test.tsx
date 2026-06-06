@@ -71,23 +71,13 @@ describe("ShareModal", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it("shows READ permission selected by default", async () => {
+  // READ is the only permission now — verify the badge is present
+  it("shows READ permission badge", async () => {
     render(<ShareModal {...defaultProps} />);
     await waitFor(() => screen.getByText("dashboard.share.title"));
-    const readBtn = screen
-      .getByText("dashboard.share.permissionRead")
-      .closest("button")!;
-    expect(readBtn.className).toContain("border-primary");
-  });
-
-  it("switches to EDIT permission when clicked", async () => {
-    render(<ShareModal {...defaultProps} />);
-    await waitFor(() => screen.getByText("dashboard.share.title"));
-    const editBtn = screen
-      .getByText("dashboard.share.permissionEdit")
-      .closest("button")!;
-    fireEvent.click(editBtn);
-    expect(editBtn.className).toContain("border-primary");
+    expect(
+      screen.getByText("dashboard.share.permissionRead"),
+    ).toBeInTheDocument();
   });
 
   it("shows never expiry selected by default", async () => {
@@ -121,7 +111,6 @@ describe("ShareModal", () => {
     ]);
     render(<ShareModal {...defaultProps} />);
     await waitFor(() => {
-      // permissionRead appears in both the toggle buttons and the link row
       expect(
         screen.getAllByText("dashboard.share.permissionRead").length,
       ).toBeGreaterThanOrEqual(1);
@@ -153,29 +142,6 @@ describe("ShareModal", () => {
       expect(shareApi.createLink).toHaveBeenCalledWith(
         "doc-1",
         "READ",
-        undefined,
-      );
-    });
-  });
-
-  it("calls shareApi.createLink with EDIT when selected", async () => {
-    vi.mocked(shareApi.createLink).mockResolvedValue(
-      makeLink({ permission: "EDIT" }) as any,
-    );
-    render(<ShareModal {...defaultProps} />);
-    await waitFor(() => screen.getByText("dashboard.share.title"));
-
-    fireEvent.click(
-      screen.getByText("dashboard.share.permissionEdit").closest("button")!,
-    );
-    fireEvent.click(
-      screen.getByText("dashboard.share.generate").closest("button")!,
-    );
-
-    await waitFor(() => {
-      expect(shareApi.createLink).toHaveBeenCalledWith(
-        "doc-1",
-        "EDIT",
         undefined,
       );
     });
@@ -224,7 +190,6 @@ describe("ShareModal", () => {
     render(<ShareModal {...defaultProps} />);
     await waitFor(() => screen.getByText("dashboard.share.neverExpires"));
 
-    // Find the button containing the Trash2 icon (has lucide-trash-2 class)
     const trashBtn = Array.from(document.querySelectorAll("button")).find(
       (btn) => btn.querySelector(".lucide-trash-2"),
     )!;

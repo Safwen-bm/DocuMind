@@ -1,5 +1,5 @@
 // e2e/invite-member.spec.ts
-import { test, expect } from '@playwright/test'
+import { test, expect, Page, APIRequestContext } from '@playwright/test'
 import { loginAs, cleanupTestUser } from './helpers/auth'
 
 const BACKEND = 'http://localhost:3000'
@@ -15,8 +15,13 @@ const MEMBER = {
   nom: 'New Member',
 }
 
+interface WorkspaceMember {
+  role: string;
+  utilisateur?: { email: string };
+}
+
 /** Helper — creates member user and returns their id */
-async function createMemberUser(page: any) {
+async function createMemberUser(page: Page): Promise<string> {
   const res = await page.request.post(`${BACKEND}/auth/test/login`, {
     data: { email: MEMBER.email, password: MEMBER.password, nom: MEMBER.nom },
   })
@@ -25,15 +30,13 @@ async function createMemberUser(page: any) {
 }
 
 /** Helper — sends an invitation as the currently logged-in user and returns the token */
-async function sendInvitation(page: any, workspaceId: string, role = 'LECTEUR') {
+async function sendInvitation(page: Page, workspaceId: string, role = 'LECTEUR'): Promise<string> {
   const inviteRes = await page.request.post(
     `${BACKEND}/workspaces/${workspaceId}/invitations`,
     { data: { email: MEMBER.email, role } },
   )
   expect(inviteRes.ok()).toBeTruthy()
 
-  // The invite endpoint only returns { message }, so we fetch the token
-  // via the test-only endpoint instead
   const tokenRes = await page.request.get(
     `${BACKEND}/test/invitations/token?email=${MEMBER.email}`,
   )
@@ -48,7 +51,7 @@ test.describe('Invite member flow', () => {
     await loginAs(page, OWNER)
   })
 
-  test.afterEach(async ({ request }) => {
+  test.afterEach(async ({ request }: { request: APIRequestContext }) => {
     await cleanupTestUser(request, OWNER.email)
     await cleanupTestUser(request, MEMBER.email)
   })
@@ -62,7 +65,6 @@ test.describe('Invite member flow', () => {
     await page.goto(`/en/workspace/${ws.id}/members`)
     await page.waitForLoadState('networkidle')
 
-    // Scope to main content only — avoids sidebar duplicate
     const main = page.getByRole('main')
     await expect(main.getByText('WS Owner').first()).toBeVisible({ timeout: 6000 })
     await expect(main.getByText(/proprietaire|owner/i).first()).toBeVisible({ timeout: 6000 })
@@ -111,20 +113,18 @@ test.describe('Invite member flow', () => {
 
     const token = await sendInvitation(page, ws.id, 'EDITEUR')
 
-    // Accept as member
     await loginAs(page, MEMBER)
     const acceptRes = await page.request.get(
       `${BACKEND}/invitations/accept?token=${token}`,
     )
     expect(acceptRes.ok()).toBeTruthy()
 
-    // Verify membership as owner
     await loginAs(page, OWNER)
     const membersRes = await page.request.get(`${BACKEND}/workspaces/${ws.id}/members`)
     expect(membersRes.ok()).toBeTruthy()
-    const members = await membersRes.json()
+    const members: WorkspaceMember[] = await membersRes.json()
 
-    const emails = members.map((m: any) => m.utilisateur?.email)
+    const emails = members.map((m) => m.utilisateur?.email)
     expect(emails).toContain(MEMBER.email)
   })
 
@@ -139,14 +139,12 @@ test.describe('Invite member flow', () => {
 
     const token = await sendInvitation(page, ws.id, 'LECTEUR')
 
-    // Accept as member
     await loginAs(page, MEMBER)
     const acceptRes = await page.request.get(
       `${BACKEND}/invitations/accept?token=${token}`,
     )
     expect(acceptRes.ok()).toBeTruthy()
 
-    // Change role as owner
     await loginAs(page, OWNER)
     const changeRes = await page.request.patch(
       `${BACKEND}/workspaces/${ws.id}/members/${memberId}`,
@@ -154,10 +152,9 @@ test.describe('Invite member flow', () => {
     )
     expect(changeRes.ok()).toBeTruthy()
 
-    // Verify
     const updatedRes = await page.request.get(`${BACKEND}/workspaces/${ws.id}/members`)
-    const updated = await updatedRes.json()
-    const updatedMember = updated.find((m: any) => m.utilisateur?.email === MEMBER.email)
+    const updated: WorkspaceMember[] = await updatedRes.json()
+    const updatedMember = updated.find((m) => m.utilisateur?.email === MEMBER.email)
     expect(updatedMember?.role).toBe('EDITEUR')
   })
 

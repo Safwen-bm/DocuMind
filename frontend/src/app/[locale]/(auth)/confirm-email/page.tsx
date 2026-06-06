@@ -1,5 +1,3 @@
-// C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\app\[locale]\(auth)\confirm-email\page.tsx
-
 "use client"
 
 import Link from "next/link"
@@ -49,7 +47,7 @@ export default function ConfirmEmailPage() {
             Click the link in the email to activate your account.
           </p>
           <p className="mt-4 text-xs text-muted-foreground">
-            Didn't receive it? Check your spam folder.
+            Didn&apos;t receive it? Check your spam folder.
           </p>
           <Button variant="outline" className="mt-6" asChild>
             <Link href={`/${locale}/login`}>Back to login</Link>
