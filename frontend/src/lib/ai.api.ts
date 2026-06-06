@@ -109,22 +109,29 @@ export const aiApi = {
   deleteConversation: (conversationId: string): Promise<{ deleted: true }> =>
     api.delete(`/ai/conversations/${conversationId}`).then(r => r.data),
 
-  // ── NEW: Export conversation as PDF ──────────────────────────────────────
+  // ── Export conversation as PDF ──────────────────────────────────────
   // Uses fetch directly (same pattern as document exports) to handle blob response
   exportConversation: async (conversationId: string): Promise<void> => {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/ai/conversations/${conversationId}/export`,
-      { credentials: "include" },
-    );
-    if (!res.ok) throw new Error(`Export failed: ${res.status}`);
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `conversation-${conversationId.slice(0, 8)}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  },
+  // Read token the same way the axios interceptor does
+  const match = document.cookie.match(/(?:^|;\s*)access_token=([^;]*)/);
+  const token = match ? decodeURIComponent(match[1]) : null;
+
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/ai/conversations/${conversationId}/export`,
+    {
+      credentials: "include",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    },
+  );
+  if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `conversation-${conversationId.slice(0, 8)}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+},
 };

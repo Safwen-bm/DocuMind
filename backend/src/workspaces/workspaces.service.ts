@@ -22,7 +22,6 @@ export class WorkspacesService {
 
   async create(userId: string, dto: CreateWorkspaceDto) {
     await this.plans.assertCanCreateWorkspace(userId);
-    // Service-level check for a clear error message
     const existing = await this.prisma.workspace.findFirst({
       where: { proprietaireId: userId, nom: dto.nom },
     });
@@ -52,8 +51,9 @@ export class WorkspacesService {
   // ── Read ────────────────────────────────────────────────────────────────────
 
   async findAll(userId: string) {
+    // Only return workspaces where the user is an ACTIVE member
     const memberships = await this.prisma.membreWorkspace.findMany({
-      where: { utilisateurId: userId },
+      where: { utilisateurId: userId, estRetire: false }, // ← fix
       include: {
         workspace: {
           include: {
@@ -62,7 +62,6 @@ export class WorkspacesService {
               select: { id: true, nom: true, avatarUrl: true },
             },
             subscription: {
-              // ← add this
               select: { plan: true, status: true },
             },
           },
@@ -76,7 +75,7 @@ export class WorkspacesService {
       monRole: m.role,
       isOwner: m.workspace.proprietaireId === userId,
       plan:
-        m.workspace.subscription?.status === 'active' // ← add this
+        m.workspace.subscription?.status === 'active'
           ? m.workspace.subscription.plan
           : 'FREE',
     }));
@@ -102,7 +101,9 @@ export class WorkspacesService {
       },
     });
 
-    if (!membre) throw new NotFoundException('Workspace introuvable.');
+    // Block removed members from accessing the workspace
+    if (!membre || membre.estRetire) // ← fix
+      throw new NotFoundException('Workspace introuvable.');
 
     return {
       ...membre.workspace,
@@ -123,13 +124,12 @@ export class WorkspacesService {
       Role.PROPRIETAIRE,
     ]);
 
-    // If renaming, check the new name doesn't conflict with another workspace this user owns
     if (dto.nom) {
       const conflict = await this.prisma.workspace.findFirst({
         where: {
           proprietaireId: userId,
           nom: dto.nom,
-          id: { not: workspaceId }, // exclude the workspace being renamed
+          id: { not: workspaceId },
         },
       });
       if (conflict) {
@@ -153,7 +153,7 @@ export class WorkspacesService {
     return { message: 'Workspace supprimé.' };
   }
 
-  // ── Activity / Analytics (unchanged) ────────────────────────────────────────
+  // ── Activity ────────────────────────────────────────────────────────────────
 
   async getActivity(userId: string, workspaceId: string) {
     await this.checkRole(userId, workspaceId, [
@@ -172,6 +172,8 @@ export class WorkspacesService {
       take: 20,
     });
   }
+
+  // ── Analytics ────────────────────────────────────────────────────────────────
 
   async getAnalytics(userId: string, workspaceId: string) {
     await this.checkRole(userId, workspaceId, [
@@ -193,9 +195,12 @@ export class WorkspacesService {
     const documentsThisWeek = await this.prisma.document.count({
       where: { workspaceId, dateCreation: { gte: sevenDaysAgo } },
     });
+
+    // Only count ACTIVE members
     const totalMembers = await this.prisma.membreWorkspace.count({
-      where: { workspaceId },
+      where: { workspaceId, estRetire: false }, // ← fix
     });
+
     const aiQuestions = await this.prisma.messageIA.count({
       where: { role: 'UTILISATEUR', conversation: { workspaceId } },
     });
@@ -298,7 +303,10 @@ export class WorkspacesService {
         utilisateurId_workspaceId: { utilisateurId: userId, workspaceId },
       },
     });
-    if (!membre) throw new NotFoundException('Workspace introuvable.');
+
+    // Block removed members — treat as if workspace doesn't exist
+    if (!membre || membre.estRetire) // ← fix
+      throw new NotFoundException('Workspace introuvable.');
 
     const hierarchy = [
       Role.LECTEUR,
@@ -311,20 +319,18 @@ export class WorkspacesService {
     if (!hasRole) throw new ForbiddenException('Permission insuffisante.');
   }
 
-  // ──  ──────────────────────────────────────────────────────────
+  // ── Members for filter dropdown ──────────────────────────────────────────────
 
   async getMembersForFilter(userId: string, workspaceId: string) {
-    // Verify the requesting user is a member with ADMINISTRATEUR+ role
     const membre = await this.prisma.membreWorkspace.findUnique({
       where: {
-        utilisateurId_workspaceId: {
-          utilisateurId: userId,
-          workspaceId,
-        },
+        utilisateurId_workspaceId: { utilisateurId: userId, workspaceId },
       },
     });
 
-    if (!membre) throw new NotFoundException('Workspace introuvable.');
+    // Block removed members
+    if (!membre || membre.estRetire) // ← fix
+      throw new NotFoundException('Workspace introuvable.');
 
     const roleHierarchy = [
       'LECTEUR',
@@ -339,8 +345,9 @@ export class WorkspacesService {
       throw new ForbiddenException('Permission insuffisante.');
     }
 
+    // Only return active members in the filter dropdown
     return this.prisma.membreWorkspace.findMany({
-      where: { workspaceId },
+      where: { workspaceId, estRetire: false }, // ← fix
       select: {
         utilisateur: {
           select: { id: true, nom: true, email: true, avatarUrl: true },

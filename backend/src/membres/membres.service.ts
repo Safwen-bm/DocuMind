@@ -1,4 +1,4 @@
-// src/membres/membres.service.ts
+// backend/src/membres/membres.service.ts
 
 import {
   Injectable,
@@ -14,11 +14,15 @@ import { Role } from '@prisma/client';
 export class MembresService {
   constructor(
     private prisma: PrismaService,
-    private notifications: NotificationsService, // ← inject
+    private notifications: NotificationsService,
   ) {}
 
+  // ── findAll ──────────────────────────────────────────────────────────────
+  // Returns ALL members (active + removed) ordered by:
+  //   1. removed last  2. role hierarchy  3. join date
   async findAll(userId: string, workspaceId: string) {
-    await this.checkMember(userId, workspaceId);
+    // Caller must be a member (active) to see this list
+    await this.checkActiveMember(userId, workspaceId);
 
     return this.prisma.membreWorkspace.findMany({
       where: { workspaceId },
@@ -27,10 +31,14 @@ export class MembresService {
           select: { id: true, nom: true, email: true, avatarUrl: true },
         },
       },
-      orderBy: { dateAdhesion: 'asc' },
+      orderBy: [
+        { estRetire: 'asc' },      // active members first
+        { dateAdhesion: 'asc' },   // then by join date
+      ],
     });
   }
 
+  // ── updateRole ───────────────────────────────────────────────────────────
   async updateRole(
     requesterId: string,
     workspaceId: string,
@@ -56,7 +64,15 @@ export class MembresService {
         utilisateur: { select: { id: true, nom: true } },
       },
     });
+
     if (!target) throw new NotFoundException('Membre introuvable.');
+
+    // Cannot update a removed member
+    if (target.estRetire) {
+      throw new BadRequestException(
+        'Impossible de modifier le rôle d\'un membre retiré.',
+      );
+    }
 
     if (
       requester.role === Role.ADMINISTRATEUR &&
@@ -71,7 +87,6 @@ export class MembresService {
       );
     }
 
-    // Get workspace name for the notification message
     const workspace = await this.prisma.workspace.findUnique({
       where: { id: workspaceId },
       select: { nom: true },
@@ -89,12 +104,12 @@ export class MembresService {
       },
     });
 
-    // ── Notify the member whose role was changed ────────────────────────────
     const roleLabels: Record<string, string> = {
       LECTEUR: 'Lecteur',
       EDITEUR: 'Éditeur',
       ADMINISTRATEUR: 'Administrateur',
     };
+
     await this.notifications.create({
       userId: targetUserId,
       type: 'ROLE_MODIFIE',
@@ -106,6 +121,9 @@ export class MembresService {
     return updated;
   }
 
+  // ── remove ───────────────────────────────────────────────────────────────
+  // Soft delete: sets estRetire = true and dateRetrait = now()
+  // The record stays in the DB — no data is lost
   async remove(requesterId: string, workspaceId: string, targetUserId: string) {
     await this.checkRole(requesterId, workspaceId, [
       Role.ADMINISTRATEUR,
@@ -120,44 +138,57 @@ export class MembresService {
         utilisateur: { select: { id: true, nom: true } },
       },
     });
+
     if (!target) throw new NotFoundException('Membre introuvable.');
 
     if (target.role === Role.PROPRIETAIRE) {
       throw new ForbiddenException('Impossible de retirer le propriétaire.');
     }
 
-    // Get workspace name before deleting
+    // Already removed — idempotent, just return success
+    if (target.estRetire) {
+      return { message: 'Membre déjà retiré.' };
+    }
+
     const workspace = await this.prisma.workspace.findUnique({
       where: { id: workspaceId },
       select: { nom: true },
     });
 
-    await this.prisma.membreWorkspace.delete({
+    // ── Soft delete: update instead of delete ─────────────────────────────
+    await this.prisma.membreWorkspace.update({
       where: {
         utilisateurId_workspaceId: { utilisateurId: targetUserId, workspaceId },
       },
+      data: {
+        estRetire: true,
+        dateRetrait: new Date(),
+      },
     });
 
-    // ── Notify the removed member ───────────────────────────────────────────
-    // Note: no lien since they no longer have access to this workspace
     await this.notifications.create({
       userId: targetUserId,
       type: 'MEMBRE_RETIRE',
       message: `Vous avez été retiré du workspace "${workspace?.nom}".`,
-      workspaceId: undefined, // don't link to workspace they can't access anymore
+      workspaceId: undefined,
       lien: undefined,
     });
 
     return { message: 'Membre retiré.' };
   }
 
-  private async checkMember(userId: string, workspaceId: string) {
+  // ── Private helpers ──────────────────────────────────────────────────────
+
+  // Only active (non-removed) members can perform actions
+  private async checkActiveMember(userId: string, workspaceId: string) {
     const membre = await this.prisma.membreWorkspace.findUnique({
       where: {
         utilisateurId_workspaceId: { utilisateurId: userId, workspaceId },
       },
     });
-    if (!membre) throw new NotFoundException('Workspace introuvable.');
+    if (!membre || membre.estRetire) {
+      throw new NotFoundException('Workspace introuvable.');
+    }
     return membre;
   }
 
@@ -166,7 +197,7 @@ export class MembresService {
     workspaceId: string,
     allowedRoles: Role[],
   ) {
-    const membre = await this.checkMember(userId, workspaceId);
+    const membre = await this.checkActiveMember(userId, workspaceId);
     const hierarchy = [
       Role.LECTEUR,
       Role.EDITEUR,

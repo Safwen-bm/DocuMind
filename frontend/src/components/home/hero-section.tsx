@@ -1,3 +1,5 @@
+// C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\components\home\hero-section.tsx 
+ 
 import Link from "next/link"
 import { ArrowRight, ChevronRight, Sparkles, Brain, FolderTree, FileText } from "lucide-react"
 import { getTranslations } from "next-intl/server"

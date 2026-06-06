@@ -1,4 +1,4 @@
-// C:\Users\MSI\Desktop\Projet\pfe-project\backend\src\auth\workspace-role.guard.ts
+// backend/src/auth/workspace-role.guard.ts
 
 import {
   Injectable,
@@ -44,7 +44,9 @@ export class WorkspaceRoleGuard implements CanActivate {
       },
     });
 
-    if (!membre) throw new NotFoundException('Workspace introuvable.');
+    // Block removed members — same as not being a member at all
+    if (!membre || membre.estRetire) // ← fix
+      throw new NotFoundException('Workspace introuvable.');
 
     const roleHierarchy: Role[] = [
       Role.LECTEUR,

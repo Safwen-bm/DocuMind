@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport} from "next";
 import { Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
@@ -19,12 +19,15 @@ export const metadata: Metadata = {
     apple: "/icons/icon-192x192.png",
   },
   manifest: "/manifest.json",
-  themeColor: "#0f172a",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "DocuMind",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0f172a",
 };
 
 export default async function LocaleLayout({

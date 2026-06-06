@@ -1,14 +1,12 @@
-//C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\app\[locale]\(dashboard)\workspace\[workspaceId]\documents\[docId]\_components\ShareModal.tsx
-
 "use client"
 
 import { useState } from "react"
 import { useTranslations } from "next-intl"
-import { shareApi, ShareLink, SharePermission } from "@/lib/share.api"
-import { cn } from "@/lib/utils"
-import { X, Link2, Copy, Check, Trash2, Eye, Pencil, Loader2, Globe } from "lucide-react"
+import { shareApi, ShareLink } from "@/lib/share.api"
+import { X, Link2, Copy, Check, Trash2, Eye, Loader2, Globe } from "lucide-react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
 interface ShareModalProps {
   open: boolean
@@ -20,7 +18,6 @@ interface ShareModalProps {
 export function ShareModal({ open, onClose, documentId, documentTitle }: ShareModalProps) {
   const t = useTranslations("dashboard.share")
   const queryClient = useQueryClient()
-  const [permission, setPermission] = useState<SharePermission>("READ")
   const [expiresInDays, setExpiresInDays] = useState<number | undefined>(undefined)
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
 
@@ -31,7 +28,7 @@ export function ShareModal({ open, onClose, documentId, documentTitle }: ShareMo
   })
 
   const createMutation = useMutation({
-    mutationFn: () => shareApi.createLink(documentId, permission, expiresInDays),
+    mutationFn: () => shareApi.createLink(documentId, "READ", expiresInDays),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["share-links", documentId] }),
   })
 
@@ -81,26 +78,13 @@ export function ShareModal({ open, onClose, documentId, documentTitle }: ShareMo
           <div className="border-b border-border p-5 space-y-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("createLink")}</p>
 
-            {/* Permission toggle */}
-            <div className="flex gap-2">
-              {(["READ", "EDIT"] as SharePermission[]).map(p => (
-                <button
-                  key={p}
-                  onClick={() => setPermission(p)}
-                  className={cn(
-                    "flex flex-1 items-center gap-2 rounded-xl border px-3 py-2.5 transition-all",
-                    permission === p
-                      ? "border-primary bg-primary/8 text-primary"
-                      : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
-                  )}
-                >
-                  {p === "READ" ? <Eye className="h-4 w-4 shrink-0" /> : <Pencil className="h-4 w-4 shrink-0" />}
-                  <div className="text-left">
-                    <p className="text-xs font-semibold">{p === "READ" ? t("permissionRead") : t("permissionEdit")}</p>
-                    <p className="text-[10px] opacity-70">{p === "READ" ? t("permissionReadDesc") : t("permissionEditDesc")}</p>
-                  </div>
-                </button>
-              ))}
+            {/* Read-only badge */}
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2.5">
+              <Eye className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <div>
+                <p className="text-xs font-semibold text-foreground">{t("permissionRead")}</p>
+                <p className="text-[10px] text-muted-foreground">{t("permissionReadDesc")}</p>
+              </div>
             </div>
 
             {/* Expiry */}
@@ -142,7 +126,11 @@ export function ShareModal({ open, onClose, documentId, documentTitle }: ShareMo
           {/* Existing links */}
           <div className="p-5">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("activeLinks")}</p>
-            {isLoading && <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>}
+            {isLoading && (
+              <div className="flex justify-center py-4">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            )}
             {!isLoading && links.length === 0 && (
               <p className="py-4 text-center text-xs text-muted-foreground">{t("noLinks")}</p>
             )}
@@ -150,12 +138,10 @@ export function ShareModal({ open, onClose, documentId, documentTitle }: ShareMo
               {links.map(link => (
                 <div key={link.id} className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2.5">
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted">
-                    {link.permission === "READ" ? <Eye className="h-3.5 w-3.5 text-muted-foreground" /> : <Pencil className="h-3.5 w-3.5 text-muted-foreground" />}
+                    <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-foreground">
-                      {link.permission === "READ" ? t("permissionRead") : t("permissionEdit")}
-                    </p>
+                    <p className="text-xs font-medium text-foreground">{t("permissionRead")}</p>
                     <p className="text-[10px] text-muted-foreground">
                       {link.expiresAt
                         ? t("expiresOn", { date: new Date(link.expiresAt).toLocaleDateString() })
@@ -163,10 +149,19 @@ export function ShareModal({ open, onClose, documentId, documentTitle }: ShareMo
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => handleCopy(link.token)} className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground">
-                      {copiedToken === link.token ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                    <button
+                      onClick={() => handleCopy(link.token)}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"
+                    >
+                      {copiedToken === link.token
+                        ? <Check className="h-3.5 w-3.5 text-green-500" />
+                        : <Copy className="h-3.5 w-3.5" />}
                     </button>
-                    <button onClick={() => revokeMutation.mutate(link.id)} disabled={revokeMutation.isPending} className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                    <button
+                      onClick={() => revokeMutation.mutate(link.id)}
+                      disabled={revokeMutation.isPending}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -174,6 +169,7 @@ export function ShareModal({ open, onClose, documentId, documentTitle }: ShareMo
               ))}
             </div>
           </div>
+
         </div>
       </div>
     </>

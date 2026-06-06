@@ -80,11 +80,15 @@ model Workspace {
 }
 
 model MembreWorkspace {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   utilisateurId String
   workspaceId   String
   role          Role
-  dateAdhesion  DateTime @default(now())
+  dateAdhesion  DateTime  @default(now())
+
+  // ── Soft delete ────────────────────────────────────────────────────────────
+  estRetire     Boolean   @default(false)
+  dateRetrait   DateTime?
 
   utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
   workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

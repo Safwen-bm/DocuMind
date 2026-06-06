@@ -15,16 +15,12 @@ export function useAuthHydration() {
   useEffect(() => {
     if (user) return;
 
-    // Read the token from the frontend cookie
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('access_token='))
-      ?.split('=')[1];
+    // Safer cookie read — handles '=' in JWT values
+    const match = document.cookie.match(/(?:^|;\s*)access_token=([^;]*)/);
+    const token = match ? decodeURIComponent(match[1]) : null;
 
-    // No token at all — not logged in, let middleware handle it
     if (!token) return;
 
-    // Call /auth/me with Bearer token (works cross-domain)
     api
       .get("/auth/me", {
         headers: { Authorization: `Bearer ${token}` },
@@ -34,13 +30,11 @@ export function useAuthHydration() {
       })
       .catch(async (err) => {
         if (err.response?.status === 401) {
-          // Token is invalid/expired — clear everything
           document.cookie = 'access_token=; path=/; max-age=0; SameSite=Lax';
           await logout();
           const locale = pathname.split("/")[1] || "en";
           router.replace(`/${locale}/login`);
         }
-        // Network error or 500 — stay put, don't kick user out
       });
   }, []);
 }

@@ -131,19 +131,25 @@ export class MailService {
   }
 
   // Resend client — initialized once
-  private resend = new Resend(process.env.RESEND_API_KEY ?? 'fake_key_for_tests');
-
-  // Helper to send via Resend
   private async send(to: string, subject: string, html: string) {
-    const { error } = await this.resend.emails.send({
-      from: process.env.MAIL_FROM ?? 'noreply@saasdocs.com',
-      to,
-      subject,
-      html,
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'api-key': process.env.BREVO_API_KEY ?? '',
+        'content-type': 'application/json',
+      } as Record<string, string>,
+      body: JSON.stringify({
+        sender: { name: 'DocuMind', email: process.env.MAIL_FROM },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+      }),
     });
 
-    if (error) {
-      throw new Error(`Resend error: ${error.message}`);
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(`Brevo error: ${JSON.stringify(err)}`);
     }
   }
 

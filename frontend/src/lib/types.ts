@@ -36,17 +36,19 @@ export interface Workspace {
 }
 
 export interface Member {
-  id: string;
-  utilisateurId: string;
-  workspaceId: string;
-  role: Role;
-  dateAdhesion: string;
+  id: string
+  utilisateurId: string
+  workspaceId: string
+  role: Role
+  dateAdhesion: string
+  estRetire: boolean
+  dateRetrait: string | null
   utilisateur: {
-    id: string;
-    nom: string;
-    email: string;
-    avatarUrl: string | null;
-  };
+    id: string
+    nom: string
+    email: string
+    avatarUrl: string | null
+  }
 }
 
 export interface Dossier {

@@ -1,3 +1,5 @@
+// C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\app\[locale]\(dashboard)\pricing\page.tsx
+
 "use client";
 
 import { useParams, useRouter } from "next/navigation";

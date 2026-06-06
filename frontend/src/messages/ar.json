@@ -344,7 +344,12 @@
         "changeRole": "تغيير الدور",
         "remove": "إزالة",
         "confirmRemove": "إزالة هذا العضو؟",
-        "noMembers": "لا يوجد أعضاء"
+        "noMembers": "لا يوجد أعضاء",
+        "joinedOn": "انضم في",
+        "removedOn": "أُزيل في",
+        "removed": "مُزال",
+        "removedCount": "مُزال(ون)",
+        "removedSection": "الأعضاء المُزالون"
       },
       "settings": {
         "title": "إعدادات المساحة",

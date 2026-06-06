@@ -1,6 +1,12 @@
-//C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\lib\document.api.ts
-
 import api from "./api";
+
+// Reads the JS-accessible cookie set by the backend after login.
+// Used only for raw fetch() calls (blob downloads) that can't go through axios.
+function getToken(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(/(?:^|;\s*)access_token=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
 
 export const documentApi = {
   // ── Documents ─────────────────────────────────────────────────────────────
@@ -17,19 +23,14 @@ export const documentApi = {
 
   getOne: (id: string) => api.get(`/documents/${id}`).then((r) => r.data),
 
-  // CHANGE: removed estFavori from type — use toggleFavori() instead
-  update: (
-    id: string,
-    data: { titre?: string; contenu?: any },
-  ) => api.patch(`/documents/${id}`, data).then((r) => r.data),
+  update: (id: string, data: { titre?: string; contenu?: any }) =>
+    api.patch(`/documents/${id}`, data).then((r) => r.data),
 
   updateSilent: (id: string, data: { titre?: string; contenu?: any }) =>
     api.patch(`/documents/${id}/silent`, data).then((r) => r.data),
 
   delete: (id: string) => api.delete(`/documents/${id}`).then((r) => r.data),
 
-  // CHANGE: now calls POST /documents/:id/favori — no body, no boolean arg
-  // Returns { isFavori: boolean }
   toggleFavori: (id: string) =>
     api.post(`/documents/${id}/favori`).then((r) => r.data),
 
@@ -48,11 +49,9 @@ export const documentApi = {
     const formData = new FormData();
     formData.append("file", file);
     const params = dossierId ? `?dossierId=${dossierId}` : "";
-    return (
-      api
-        .post(`/workspaces/${workspaceId}/documents/upload${params}`, formData)
-        .then((r) => r.data)
-    );
+    return api
+      .post(`/workspaces/${workspaceId}/documents/upload${params}`, formData)
+      .then((r) => r.data);
   },
 
   // ── Dashboard ─────────────────────────────────────────────────────────────
@@ -68,15 +67,11 @@ export const documentApi = {
   getFolders: (workspaceId: string) =>
     api.get(`/workspaces/${workspaceId}/folders`).then((r) => r.data),
 
-  createFolder: (
-    workspaceId: string,
-    data: { nom: string; parentId?: string },
-  ) => api.post(`/workspaces/${workspaceId}/folders`, data).then((r) => r.data),
+  createFolder: (workspaceId: string, data: { nom: string; parentId?: string }) =>
+    api.post(`/workspaces/${workspaceId}/folders`, data).then((r) => r.data),
 
   updateFolder: (workspaceId: string, id: string, nom: string) =>
-    api
-      .patch(`/workspaces/${workspaceId}/folders/${id}`, { nom })
-      .then((r) => r.data),
+    api.patch(`/workspaces/${workspaceId}/folders/${id}`, { nom }).then((r) => r.data),
 
   deleteFolder: (workspaceId: string, id: string) =>
     api.delete(`/workspaces/${workspaceId}/folders/${id}`).then((r) => r.data),
@@ -92,11 +87,18 @@ export const documentApi = {
       .then((r) => r.data),
 
   // ── Export / Download ─────────────────────────────────────────────────────
+  // These use raw fetch() because axios can't trigger a file download from a
+  // blob response. Bearer token is read manually since axios interceptors don't
+  // apply here.
 
   exportPdf: async (id: string, titre: string) => {
+    const token = getToken();
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/documents/${id}/export/pdf`,
-      { credentials: "include" },
+      {
+        credentials: "include",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      },
     );
     if (!res.ok) throw new Error(`Export PDF échoué: ${res.status}`);
     const blob = await res.blob();
@@ -111,9 +113,13 @@ export const documentApi = {
   },
 
   exportDocx: async (id: string, titre: string) => {
+    const token = getToken();
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/documents/${id}/export/docx`,
-      { credentials: "include" },
+      {
+        credentials: "include",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      },
     );
     if (!res.ok) throw new Error(`Export DOCX échoué: ${res.status}`);
     const blob = await res.blob();
@@ -128,9 +134,13 @@ export const documentApi = {
   },
 
   exportExcel: async (id: string, titre: string) => {
+    const token = getToken();
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/documents/${id}/export/excel`,
-      { credentials: "include" },
+      {
+        credentials: "include",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      },
     );
     if (!res.ok) throw new Error(`Export Excel échoué: ${res.status}`);
     const blob = await res.blob();

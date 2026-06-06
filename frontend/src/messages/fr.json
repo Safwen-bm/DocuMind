@@ -344,7 +344,12 @@
         "changeRole": "Changer le rôle",
         "remove": "Retirer",
         "confirmRemove": "Retirer ce membre ?",
-        "noMembers": "Aucun membre"
+        "noMembers": "Aucun membre",
+        "joinedOn": "A rejoint le",
+        "removedOn": "Retiré le",
+        "removed": "Retiré",
+        "removedCount": "retiré(s)",
+        "removedSection": "Membres retirés"
       },
       "settings": {
         "title": "Paramètres de l'espace",

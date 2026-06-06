@@ -344,7 +344,12 @@
         "changeRole": "Change role",
         "remove": "Remove",
         "confirmRemove": "Remove this member?",
-        "noMembers": "No members yet"
+        "noMembers": "No members yet",
+        "joinedOn": "Joined",
+        "removedOn": "Removed on",
+        "removed": "Removed",
+        "removedCount": "removed",
+        "removedSection": "Removed members"
       },
       "settings": {
         "title": "Workspace Settings",
