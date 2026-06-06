@@ -367,10 +367,12 @@ describe('Workspaces & Members (e2e)', () => {
 
       expect(res.status).toBe(200);
 
+      // Member row still exists but is soft-deleted (estRetire = true)
       const removed = await prisma.membreWorkspace.findUnique({
         where: { utilisateurId_workspaceId: { utilisateurId: member.id, workspaceId: workspace.id } },
       });
-      expect(removed).toBeNull();
+      expect(removed).not.toBeNull();
+      expect(removed!.estRetire).toBe(true);
     });
   });
 });
