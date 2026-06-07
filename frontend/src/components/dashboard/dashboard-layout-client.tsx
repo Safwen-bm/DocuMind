@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { KeyboardShortcutsModal } from "@/components/dashboard/KeyboardShortcutsModal";
@@ -11,10 +12,22 @@ import { useNotificationsSocket } from "@/hooks/useNotifications";
 export function DashboardLayoutClient({ children }: { children: React.ReactNode }) {
   useAuthHydration();
 
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, hydrated } = useAuthStore();
+  const router = useRouter();
+  const params = useParams();
 
-  // ── Real-time notifications — one socket for the entire dashboard ─────────
-  // Starts as soon as the user is authenticated, lives for the whole session
+  // ── Client-side auth guard ────────────────────────────────────────────────
+  // Runs after useAuthHydration sets hydrated=true.
+  // If no user found → redirect to login immediately.
+  // This is the safety net for cases middleware doesn't catch
+  // (e.g. stale client-side navigation, token expiry mid-session).
+  useEffect(() => {
+    if (hydrated && !isAuthenticated) {
+      const locale = (params?.locale as string) || "en";
+      router.replace(`/${locale}/login`);
+    }
+  }, [hydrated, isAuthenticated]);
+
   useNotificationsSocket({ enabled: isAuthenticated });
 
   const [collapsed, setCollapsed] = useState(false);
@@ -38,6 +51,11 @@ export function DashboardLayoutClient({ children }: { children: React.ReactNode 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  // ── Don't render the dashboard shell until we know auth state ─────────────
+  // Prevents the broken empty sidebar + failed API calls flash
+  // that happens when hydrated=false or user is not authenticated.
+  if (!hydrated || !isAuthenticated) return null;
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

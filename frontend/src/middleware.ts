@@ -1,4 +1,4 @@
-// C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\proxy.ts
+// C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\middleware.ts
 
 import createMiddleware from 'next-intl/middleware'
 import { routing } from './i18n/routing'

@@ -66,7 +66,8 @@
     "aiAssistant": "المساعد الذكي",
     "security": "الأمان",
     "signIn": "تسجيل الدخول",
-    "getStarted": "ابدأ مجاناً"
+    "getStarted": "ابدأ مجاناً",
+    "pricing": "الأسعار"
   },
   "home": {
     "hero": {
@@ -75,7 +76,20 @@
       "titleHighlight": "يفهمها الذكاء الاصطناعي",
       "subtitle": "مركزة وثائقك، اطرح أسئلة بلغة طبيعية، واحصل على إجابات دقيقة مستندة فقط إلى محتواك الخاص.",
       "startFree": "ابدأ مجاناً",
-      "viewDemo": "عرض تجريبي"
+      "viewDemo": "عرض تجريبي",
+      "trustNoCreditCard": "لا تحتاج إلى بطاقة ائتمان",
+      "trustFreePlan": "خطة مجانية متاحة",
+      "trustSetup": "الإعداد في 60 ثانية",
+      "statSpeed": "أسرع في استرجاع المعرفة",
+      "statRag": "إجابات ذكاء اصطناعي مدعومة بـ RAG",
+      "statWorkspaces": "مساحات عمل فرق",
+      "mockupAiTitle": "مساعد الذكاء الاصطناعي",
+      "mockupQuestion": "كيف يعمل نظام المصادقة؟",
+      "mockupAnswer": "بناءً على الوثائق، يستخدم النظام رموز JWT مع تدفق التحقق بخطوتين…",
+      "mockupSource1": "auth-guide.md",
+      "mockupSource2": "security.md",
+      "mockupAiThinking": "الذكاء الاصطناعي يفكر…",
+      "mockupAskPlaceholder": "اسأل عن مستنداتك…"
     },
     "features": {
       "badge": "المميزات",
@@ -161,12 +175,26 @@
         "answer": "بناءً على دليل مصادقة REST API، يستخدم النظام رموز JWT للمصادقة عديمة الحالة. التدفق هو: يرسل المستخدم بيانات اعتماده، يتحقق الخادم باستخدام bcrypt، ثم يُنشأ رمز JWT ويُعاد.",
         "source1": "دليل المصادقة",
         "source2": "البنية"
-      }
+      },
+      "panelTitle": "مساعد الذكاء الاصطناعي",
+      "panelWorkspace": "مساحة العمل الهندسية",
+      "quickActions": {
+        "summarize": "تلخيص",
+        "simplify": "تبسيط",
+        "keyDecisions": "القرارات الرئيسية"
+      },
+      "chatInputPlaceholder": "اسأل أي شيء عن مساحة العمل الخاصة بك…"
     },
     "security": {
       "badge": "الأمان",
       "title": "أمان على مستوى المؤسسات بالتصميم",
       "subtitle": "خصوصية بياناتك هي أولويتنا. كل جانب من DocuMind مبني بمبادئ الأمان أولاً.",
+      "trustItems": {
+        "rbac": "التحكم في الوصول القائم على الأدوار",
+        "isolation": "عزل بيانات مساحة العمل",
+        "scoped": "استعلامات ذكاء اصطناعي محدودة النطاق",
+        "audit": "سجلات تدقيق المسؤول"
+      },
       "items": {
         "isolation": {
           "title": "عزل متعدد المستأجرين",
@@ -194,6 +222,11 @@
         }
       }
     },
+    "pricing": {
+      "badge": "الأسعار",
+      "mostPopular": "الأكثر شعبية",
+      "seeFullComparison": "عرض مقارنة كاملة للخطط"
+    },
     "cta": {
       "title": "مستعد لتحويل طريقة إدارة فريقك للمعرفة؟",
       "subtitle": "انضم إلى الفرق التي تثق بـ DocuMind لتمركز توثيقها وجعله قابلاً للبحث بذكاء.",
@@ -201,7 +234,11 @@
       "viewDemo": "عرض تجريبي"
     },
     "footer": {
-      "builtWith": "مبني باستخدام Next.js وPostgreSQL + pgvector وOpenAI."
+      "builtWith": "مبني باستخدام Next.js وPostgreSQL + pgvector.",
+      "description": "إدارة المعرفة بالذكاء الاصطناعي للفرق الحديثة. حوّل مستنداتك إلى قاعدة معرفة ذكية وقابلة للبحث.",
+      "product": "المنتج",
+      "account": "الحساب",
+      "copyright": "جميع الحقوق محفوظة."
     }
   },
   "common": {

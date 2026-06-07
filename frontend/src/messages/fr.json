@@ -66,7 +66,8 @@
     "aiAssistant": "Assistant IA",
     "security": "Sécurité",
     "signIn": "Se connecter",
-    "getStarted": "Commencer gratuitement"
+    "getStarted": "Commencer gratuitement",
+    "pricing": "Tarifs"
   },
   "home": {
     "hero": {
@@ -75,7 +76,20 @@
       "titleHighlight": "comprise par l'IA",
       "subtitle": "Centralisez votre documentation, posez des questions en langage naturel, et obtenez des réponses précises basées uniquement sur votre contenu.",
       "startFree": "Commencer gratuitement",
-      "viewDemo": "Voir la démo"
+      "viewDemo": "Voir la démo",
+      "trustNoCreditCard": "Aucune carte bancaire requise",
+      "trustFreePlan": "Plan gratuit disponible",
+      "trustSetup": "Configuration en 60 secondes",
+      "statSpeed": "récupération des connaissances plus rapide",
+      "statRag": "réponses IA alimentées par RAG",
+      "statWorkspaces": "espaces de travail d'équipe",
+      "mockupAiTitle": "Assistant IA",
+      "mockupQuestion": "Comment fonctionne l'authentification ?",
+      "mockupAnswer": "D'après la documentation, le système utilise des jetons JWT avec un flux de vérification en 2 étapes…",
+      "mockupSource1": "auth-guide.md",
+      "mockupSource2": "security.md",
+      "mockupAiThinking": "L'IA réfléchit…",
+      "mockupAskPlaceholder": "Posez une question sur vos docs…"
     },
     "features": {
       "badge": "Fonctionnalités",
@@ -161,12 +175,26 @@
         "answer": "Selon le Guide d'authentification REST API, le système utilise des tokens JWT pour l'authentification sans état. Le flux est : l'utilisateur soumet ses identifiants, le serveur valide avec bcrypt, un token JWT est généré et retourné.",
         "source1": "Guide Auth",
         "source2": "Architecture"
-      }
+      },
+      "panelTitle": "Assistant IA",
+      "panelWorkspace": "Espace de travail Ingénierie",
+      "quickActions": {
+        "summarize": "Résumer",
+        "simplify": "Simplifier",
+        "keyDecisions": "Décisions clés"
+      },
+      "chatInputPlaceholder": "Posez une question sur votre espace de travail…"
     },
     "security": {
       "badge": "Sécurité",
       "title": "Sécurité de niveau entreprise par conception",
       "subtitle": "La confidentialité de vos données est notre priorité. Chaque aspect de DocuMind est construit avec des principes de sécurité d'abord.",
+      "trustItems": {
+        "rbac": "Contrôle d'accès basé sur les rôles",
+        "isolation": "Isolation des données par espace de travail",
+        "scoped": "Requêtes IA cloisonnées",
+        "audit": "Journaux d'audit administrateur"
+      },
       "items": {
         "isolation": {
           "title": "Isolation multi-tenant",
@@ -200,9 +228,22 @@
       "getStarted": "Commencer gratuitement",
       "viewDemo": "Voir la démo"
     },
+    "pricing": {
+      "badge": "Tarifs",
+      "mostPopular": "Le plus populaire",
+      "seeFullComparison": "Voir la comparaison complète des plans"
+    },
     "footer": {
-      "builtWith": "Construit avec Next.js, PostgreSQL + pgvector et OpenAI."
-    }
+      "builtWith": "Construit avec Next.js, PostgreSQL + pgvector.",
+      "description": "Gestion des connaissances alimentée par l'IA pour les équipes modernes. Transformez vos documents en une base de connaissances intelligente et consultable.",
+      "product": "Produit",
+      "account": "Compte",
+      "copyright": "Tous droits réservés."
+    },
+    "description": "Gestion des connaissances alimentée par l'IA pour les équipes modernes. Transformez vos documents en une base de connaissances intelligente et consultable.",
+    "product": "Produit",
+    "account": "Compte",
+    "copyright": "Tous droits réservés."
   },
   "common": {
     "loading": "Chargement...",

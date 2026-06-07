@@ -66,7 +66,8 @@
     "aiAssistant": "AI Assistant",
     "security": "Security",
     "signIn": "Sign In",
-    "getStarted": "Get Started Free"
+    "getStarted": "Get Started Free",
+    "pricing": "Pricing"
   },
   "home": {
     "hero": {
@@ -75,7 +76,20 @@
       "titleHighlight": "understood by AI",
       "subtitle": "Centralize your documentation, ask questions in natural language, and get precise answers grounded exclusively in your own content. No hallucinations, only your knowledge.",
       "startFree": "Start for Free",
-      "viewDemo": "View Demo"
+      "viewDemo": "View Demo",
+      "trustNoCreditCard": "No credit card required",
+      "trustFreePlan": "Free plan available",
+      "trustSetup": "Setup in 60 seconds",
+      "statSpeed": "faster knowledge retrieval",
+      "statRag": "powered AI answers",
+      "statWorkspaces": "team workspaces",
+      "mockupAiTitle": "AI Assistant",
+      "mockupQuestion": "How does authentication work?",
+      "mockupAnswer": "Based on the documentation, the system uses JWT tokens with a 2-step verification flow…",
+      "mockupSource1": "auth-guide.md",
+      "mockupSource2": "security.md",
+      "mockupAiThinking": "AI is thinking…",
+      "mockupAskPlaceholder": "Ask about your docs…"
     },
     "features": {
       "badge": "Features",
@@ -161,12 +175,26 @@
         "answer": "Based on the REST API Authentication Guide, the system uses JWT tokens for stateless authentication. The flow is: user submits credentials, server validates with bcrypt, JWT token is generated and returned.",
         "source1": "Auth Guide",
         "source2": "Architecture"
-      }
+      },
+      "panelTitle": "AI Assistant",
+      "panelWorkspace": "Engineering Workspace",
+      "quickActions": {
+        "summarize": "Summarize",
+        "simplify": "Simplify",
+        "keyDecisions": "Key decisions"
+      },
+      "chatInputPlaceholder": "Ask anything about your workspace…"
     },
     "security": {
       "badge": "Security",
       "title": "Enterprise-grade security by design",
       "subtitle": "Your data privacy is our priority. Every aspect of DocuMind is built with security-first principles.",
+      "trustItems": {
+        "rbac": "Role-based access control",
+        "isolation": "Workspace data isolation",
+        "scoped": "Scoped AI queries",
+        "audit": "Admin audit logs"
+      },
       "items": {
         "isolation": {
           "title": "Multi-Tenant Isolation",
@@ -200,8 +228,17 @@
       "getStarted": "Get Started Free",
       "viewDemo": "View Demo"
     },
+    "pricing": {
+      "badge": "Pricing",
+      "mostPopular": "Most popular",
+      "seeFullComparison": "See full plan comparison"
+    },
     "footer": {
-      "builtWith": "Built with Next.js, PostgreSQL + pgvector, and OpenAI."
+      "builtWith": "Built with Next.js, PostgreSQL + pgvector.",
+      "description": "AI-powered knowledge management for modern teams. Turn your documents into an intelligent, searchable knowledge base.",
+      "product": "Product",
+      "account": "Account",
+      "copyright": "All rights reserved."
     }
   },
   "common": {
