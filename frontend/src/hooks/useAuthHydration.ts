@@ -1,3 +1,5 @@
+// frontend/src/hooks/useAuthHydration.ts
+
 "use client";
 
 import { useEffect } from "react";
@@ -7,19 +9,27 @@ import api from "@/lib/api";
 
 export function useAuthHydration() {
   const setAuth = useAuthStore((state) => state.setAuth);
+  const setHydrated = useAuthStore((state) => state.setHydrated); // ← new
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (user) return;
+    // Already hydrated from a previous run in this tab — skip
+    if (user) {
+      setHydrated(); // ← still mark it done in case this is a re-render
+      return;
+    }
 
-    // Safer cookie read — handles '=' in JWT values
     const match = document.cookie.match(/(?:^|;\s*)access_token=([^;]*)/);
     const token = match ? decodeURIComponent(match[1]) : null;
 
-    if (!token) return;
+    if (!token) {
+      // No cookie — user is definitely not logged in, mark hydration done
+      setHydrated(); // ← this was the missing line causing infinite spinner
+      return;
+    }
 
     api
       .get("/auth/me", {
@@ -30,11 +40,14 @@ export function useAuthHydration() {
       })
       .catch(async (err) => {
         if (err.response?.status === 401) {
-          document.cookie = 'access_token=; path=/; max-age=0; SameSite=Lax';
+          document.cookie = "access_token=; path=/; max-age=0; SameSite=Lax";
           await logout();
           const locale = pathname.split("/")[1] || "en";
           router.replace(`/${locale}/login`);
         }
+      })
+      .finally(() => {
+        setHydrated(); // ← called after success or error, covers both cases
       });
   }, []);
 }

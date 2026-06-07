@@ -1,5 +1,3 @@
-// src/search/search.service.ts
-
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiService } from '../ai/ai.service';
@@ -17,36 +15,6 @@ export interface SearchResult {
   score: number;
 }
 
-// ── PostgreSQL helper: recursively extract text from TipTap JSON ──────────────
-// This function walks the TipTap JSON tree and concatenates all "text" node
-// values — exactly like the extractText() JS method does on the backend,
-// but done in SQL so the fulltext index works on real content, not JSON keys.
-const EXTRACT_TIPTAP_TEXT = `
-  WITH RECURSIVE tiptap_nodes AS (
-    SELECT jsonb_array_elements(
-      CASE
-        WHEN d.contenu IS NULL THEN '[]'::jsonb
-        WHEN d.contenu->'content' IS NULL THEN '[]'::jsonb
-        ELSE d.contenu->'content'
-      END
-    ) AS node
-    UNION ALL
-    SELECT jsonb_array_elements(
-      CASE
-        WHEN t.node->'content' IS NOT NULL THEN t.node->'content'
-        ELSE '[]'::jsonb
-      END
-    )
-    FROM tiptap_nodes t
-    WHERE t.node->'content' IS NOT NULL
-  )
-  SELECT string_agg(node->>'text', ' ')
-  FROM tiptap_nodes
-  WHERE node->>'type' = 'text'
-    AND node->>'text' IS NOT NULL
-    AND node->>'text' != ''
-`;
-
 @Injectable()
 export class SearchService {
   constructor(
@@ -62,18 +30,13 @@ export class SearchService {
     if (!query || query.trim().length < 2) return [];
 
     const membre = await this.prisma.membreWorkspace.findUnique({
-      where: {
-        utilisateurId_workspaceId: { utilisateurId: userId, workspaceId },
-      },
+      where: { utilisateurId_workspaceId: { utilisateurId: userId, workspaceId } },
     });
     if (!membre) throw new ForbiddenException('Accès refusé.');
 
     const q = query.trim();
 
     // ── 1. Full-text search ───────────────────────────────────────────────
-    // Extracts real text from TipTap JSON recursively.
-    // Searches only in: document title + actual written text content.
-    // No more JSON keys like "type", "doc", "content", "paragraph" polluting results.
     const fulltextResults = await this.prisma.$queryRaw<
       {
         id: string;
@@ -98,7 +61,6 @@ export class SearchService {
           d."estArchive",
           w.nom AS "workspaceNom",
           dos.nom AS "dossierNom",
-          -- Extract only real text nodes from TipTap JSON tree
           COALESCE(
             (
               WITH RECURSIVE nodes AS (
@@ -155,9 +117,7 @@ export class SearchService {
     `;
 
     // ── 2. Semantic search via pgvector ───────────────────────────────────
-    // Threshold raised from 0.3 → 0.70 to eliminate false positives.
-    // At 0.3 almost anything matches. At 0.70 only genuinely relevant
-    // content passes. Adjust downward to 0.65 if you want slightly more results.
+    // Threshold 0.70 — only genuinely relevant content passes
     const SEMANTIC_THRESHOLD = 0.70;
 
     let semanticResults: {
@@ -174,29 +134,34 @@ export class SearchService {
 
     try {
       const embedding = await this.aiService.getEmbeddingPublic(q);
-      const vectorStr = `[${embedding.join(',')}]`;
 
-      semanticResults = await this.prisma.$queryRaw`
-        SELECT
-          d.id AS "documentId",
-          d.titre,
-          dc.contenu,
-          d."workspaceId",
-          w.nom AS "workspaceNom",
-          d."dossierId",
-          dos.nom AS "dossierNom",
-          d."dateMiseAJour",
-          1 - (dc.embedding <=> ${vectorStr}::vector) AS similarity
-        FROM document_chunks dc
-        JOIN documents d ON d.id = dc."documentId"
-        JOIN workspaces w ON w.id = d."workspaceId"
-        LEFT JOIN dossiers dos ON dos.id = d."dossierId"
-        WHERE d."workspaceId" = ${workspaceId}
-          AND d."estArchive" = false
-          AND 1 - (dc.embedding <=> ${vectorStr}::vector) > ${SEMANTIC_THRESHOLD}
-        ORDER BY dc.embedding <=> ${vectorStr}::vector
-        LIMIT 20
-      `;
+      // null means Gemini is rate-limited — skip semantic, fall back to fulltext only
+      if (embedding) {
+        const vectorStr = `[${embedding.join(',')}]`;
+        semanticResults = await this.prisma.$queryRaw`
+          SELECT
+            d.id AS "documentId",
+            d.titre,
+            dc.contenu,
+            d."workspaceId",
+            w.nom AS "workspaceNom",
+            d."dossierId",
+            dos.nom AS "dossierNom",
+            d."dateMiseAJour",
+            1 - (dc.embedding <=> ${vectorStr}::vector) AS similarity
+          FROM document_chunks dc
+          JOIN documents d ON d.id = dc."documentId"
+          JOIN workspaces w ON w.id = d."workspaceId"
+          LEFT JOIN dossiers dos ON dos.id = d."dossierId"
+          WHERE d."workspaceId" = ${workspaceId}
+            AND d."estArchive" = false
+            AND 1 - (dc.embedding <=> ${vectorStr}::vector) > ${SEMANTIC_THRESHOLD}
+          ORDER BY dc.embedding <=> ${vectorStr}::vector
+          LIMIT 20
+        `;
+      } else {
+        console.warn('Semantic search skipped — Gemini embedding rate-limited');
+      }
     } catch (err) {
       // Semantic failure is non-blocking — fall back to fulltext only
       console.error('Semantic search error:', err);
@@ -251,7 +216,6 @@ export class SearchService {
       .slice(0, 15);
   }
 
-  // Extract relevant excerpt from TipTap JSON around query term
   private extractExcerpt(contenu: any, query: string): string {
     if (!contenu) return '';
     const text = this.extractText(contenu);
@@ -262,8 +226,6 @@ export class SearchService {
     const idx = lower.indexOf(queryLower);
 
     if (idx === -1) {
-      // Query term not found in extracted text — no excerpt
-      // (this document matched by title only)
       return text.slice(0, 180) + (text.length > 180 ? '...' : '');
     }
 
@@ -276,7 +238,6 @@ export class SearchService {
     );
   }
 
-  // Walk TipTap JSON and extract only actual text node values
   private extractText(node: any): string {
     if (!node) return '';
     if (typeof node === 'string') return node;

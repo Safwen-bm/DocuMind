@@ -9,7 +9,6 @@ import {
   aiApi, ChatSource, Conversation, ConversationMessage,
 } from "@/lib/ai.api";
 import { documentApi } from "@/lib/document.api";
-import { useAiStream } from "@/hooks/useAiStream";
 import { cn } from "@/lib/utils";
 import {
   X, Send, Loader2, Sparkles, User, FileText,
@@ -24,7 +23,6 @@ interface Message {
   content: string;
   sources?: ChatSource[];
   loading?: boolean;
-  streaming?: boolean; // ← token is being appended live
   isSummary?: boolean;
   isSimplify?: boolean;
   isAction?: string;
@@ -104,21 +102,12 @@ function renderInline(text: string): React.ReactNode {
   return parts.length === 1 && typeof parts[0] === "string" ? parts[0] : <>{parts}</>;
 }
 
-// ── Streaming cursor ──────────────────────────────────────────────────────────
-function StreamingCursor() {
-  return (
-    <span className="inline-block h-4 w-0.5 bg-current opacity-70 animate-pulse ml-0.5 align-middle" />
-  );
-}
-
 export function AiChatPanel({
   open, onClose, workspaceId, docId, docTitle, mode = "document",
 }: AiChatPanelProps) {
   const locale = useLocale();
   const router = useRouter();
   const t = useTranslations("dashboard.ai");
-
-  const { streamChat } = useAiStream({ enabled: open });
 
   const [view, setView] = useState<"chat" | "history">("chat");
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
@@ -137,8 +126,6 @@ export function AiChatPanel({
 
   const [isIndexed, setIsIndexed] = useState<boolean | null>(null);
   const indexPollRef = useRef<NodeJS.Timeout | null>(null);
-  // Track the streaming message id so we can append tokens to it
-  const streamingMsgIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!open || mode !== "document" || !docId) return;
@@ -226,7 +213,7 @@ export function AiChatPanel({
     }]);
   }
 
-  // ── Main send — uses streaming ────────────────────────────────────────────
+  // ── Main send — plain REST, same as workspace mode ────────────────────────
   async function handleSend() {
     const question = input.trim();
     if (!question || loading) return;
@@ -240,62 +227,43 @@ export function AiChatPanel({
     setLoading(true);
 
     const userMsg: Message = { id: crypto.randomUUID(), role: "user", content: question };
-    const assistantMsgId = crypto.randomUUID();
-    streamingMsgIdRef.current = assistantMsgId;
+    const loadingMsg: Message = { id: crypto.randomUUID(), role: "assistant", content: "", loading: true };
 
-    // Add user message + empty streaming assistant message
-    setMessages(prev => [...prev, userMsg, {
-      id: assistantMsgId,
-      role: "assistant",
-      content: "",
-      streaming: true,
-      loading: false,
-    }]);
+    setMessages(prev => [...prev, userMsg, loadingMsg]);
 
-    streamChat(
-      { workspaceId, question, docId, conversationId, mode },
-      {
-        onConversationId: (id) => {
-          setConversationId(id);
-        },
-        onToken: (token) => {
-          // Append each token to the streaming message
-          setMessages(prev => prev.map(m =>
-            m.id === streamingMsgIdRef.current
-              ? { ...m, content: m.content + token }
-              : m
-          ));
-        },
-        onDone: ({ sources, conversationId: convId }) => {
-          setConversationId(convId);
-          // Mark streaming as complete, attach sources
-          setMessages(prev => prev.map(m =>
-            m.id === streamingMsgIdRef.current
-              ? {
-                  ...m,
-                  streaming: false,
-                  sources,
-                  isWarning: isQuotaMessage(m.content),
-                }
-              : m
-          ));
-          streamingMsgIdRef.current = null;
-          setLoading(false);
-        },
-        onError: (message) => {
-          setMessages(prev => prev.map(m =>
-            m.id === streamingMsgIdRef.current
-              ? { ...m, content: message || t("errorResponse"), streaming: false, isWarning: true }
-              : m
-          ));
-          streamingMsgIdRef.current = null;
-          setLoading(false);
-        },
-      },
-    );
+    try {
+      let res;
+      if (mode === "workspace") {
+        res = await aiApi.chatWorkspace(workspaceId, question, conversationId);
+      } else {
+        res = await aiApi.chat(workspaceId, question, docId, conversationId);
+      }
+
+      if (!conversationId) setConversationId(res.conversationId);
+
+      setMessages(prev => prev.map(m =>
+        m.loading
+          ? {
+              ...m,
+              content: res.answer,
+              loading: false,
+              sources: res.sources,
+              isWarning: isQuotaMessage(res.answer),
+            }
+          : m
+      ));
+    } catch {
+      setMessages(prev => prev.map(m =>
+        m.loading
+          ? { ...m, content: t("errorResponse"), loading: false, isWarning: true }
+          : m
+      ));
+    } finally {
+      setLoading(false);
+    }
   }
 
-  // ── Summarize (still REST — not a conversational question) ────────────────
+  // ── Summarize ─────────────────────────────────────────────────────────────
   async function handleSummarize() {
     if (!docId || summaryLoading) return;
     setSummaryLoading(true);
@@ -303,9 +271,6 @@ export function AiChatPanel({
     setMessages(prev => [...prev, loadingMsg]);
     try {
       const result = await aiApi.summarize(docId);
-      const userQuestion = `Résume ce document : "${docTitle || "document"}"`;
-      const res = await aiApi.chat(workspaceId, userQuestion, docId, conversationId);
-      if (!conversationId) setConversationId(res.conversationId);
       setMessages(prev => prev.map(m =>
         m.loading && m.isSummary ? { ...m, content: result, loading: false, isWarning: isQuotaMessage(result) } : m,
       ));
@@ -316,7 +281,7 @@ export function AiChatPanel({
     } finally { setSummaryLoading(false); }
   }
 
-  // ── Simplify (still REST) ─────────────────────────────────────────────────
+  // ── Simplify ──────────────────────────────────────────────────────────────
   async function handleSimplify() {
     if (!docId || simplifyLoading) return;
     setSimplifyLoading(true);
@@ -324,9 +289,6 @@ export function AiChatPanel({
     setMessages(prev => [...prev, loadingMsg]);
     try {
       const result = await aiApi.simplify(docId);
-      const userQuestion = `Simplifie le contenu de ce document : "${docTitle || "document"}"`;
-      const res = await aiApi.chat(workspaceId, userQuestion, docId, conversationId);
-      if (!conversationId) setConversationId(res.conversationId);
       setMessages(prev => prev.map(m =>
         m.loading && m.isSimplify ? { ...m, content: result, loading: false } : m,
       ));
@@ -337,7 +299,7 @@ export function AiChatPanel({
     } finally { setSimplifyLoading(false); }
   }
 
-  // ── Doc actions (still REST) ──────────────────────────────────────────────
+  // ── Doc actions ───────────────────────────────────────────────────────────
   async function handleDocAction(actionId: DocActionId) {
     if (!docId || actionLoading) return;
     if (isIndexed === false) { addNotIndexedWarning(); return; }
@@ -347,9 +309,6 @@ export function AiChatPanel({
     setMessages(prev => [...prev, loadingMsg]);
     try {
       const result = await aiApi.documentAction(docId, actionId);
-      const userQuestion = `Extrais les ${actionDef.labelFr.toLowerCase()} de ce document.`;
-      const res = await aiApi.chat(workspaceId, userQuestion, docId, conversationId);
-      if (!conversationId) setConversationId(res.conversationId);
       setMessages(prev => prev.map(m =>
         m.loading && m.isAction === actionDef.labelFr
           ? { ...m, content: result, loading: false, isWarning: isQuotaMessage(result) } : m,
@@ -590,11 +549,7 @@ export function AiChatPanel({
                       ) : msg.role === "user" ? (
                         <p className="whitespace-pre-wrap">{msg.content}</p>
                       ) : (
-                        <>
-                          <MarkdownText content={msg.content} />
-                          {/* Blinking cursor while streaming */}
-                          {msg.streaming && <StreamingCursor />}
-                        </>
+                        <MarkdownText content={msg.content} />
                       )}
                     </div>
 
@@ -607,7 +562,7 @@ export function AiChatPanel({
                             <FileText className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" />
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-xs font-medium text-foreground">{source.titre}</p>
-                              <p className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground italic">"{source.excerpt}"</p>
+                              <p className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground italic">&quot;{source.excerpt}&quot;</p>
                             </div>
                             <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground mt-0.5" />
                           </button>

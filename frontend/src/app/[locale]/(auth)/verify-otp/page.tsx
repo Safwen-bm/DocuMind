@@ -1,9 +1,10 @@
-// C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\app\[locale]\(auth)\verify-otp\page.tsx
+// frontend/src/app/[locale]/(auth)/verify-otp/page.tsx
+
 "use client";
 
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";  // ← add useSearchParams
 import { Brain, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,8 @@ export default function VerifyOtpPage() {
   const router = useRouter();
   const params = useParams();
   const locale = params.locale as string;
+  const searchParams = useSearchParams();                          // ← new
+  const redirect = searchParams.get("redirect");                  // ← new
   const t = useTranslations("auth.otp");
   const tErr = useTranslations("auth.errors");
   const { pendingEmail, setAuth, setJustLoggedIn } = useAuthStore();
@@ -41,12 +44,16 @@ export default function VerifyOtpPage() {
       setAuth(res.data.user);
       setJustLoggedIn(true);
 
-      // Set cookie on THIS domain (Vercel) so middleware can read it
-      if (typeof window !== 'undefined') {
-        document.cookie = `access_token=${res.data.accessToken}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
+      if (typeof window !== "undefined") {
+        document.cookie = `access_token=${res.data.accessToken}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
       }
 
-      router.push(`/${locale}/dashboard`);
+      // ── redirect to invitation page if we came from one, else dashboard ──
+      if (redirect) {
+        router.push(decodeURIComponent(redirect));   // ← the fix
+      } else {
+        router.push(`/${locale}/dashboard`);
+      }
     } catch {
       setError(tErr("invalidOtp"));
     } finally {
@@ -54,6 +61,7 @@ export default function VerifyOtpPage() {
     }
   }
 
+  // resend stays exactly the same
   async function handleResend() {
     setResending(true);
     setError("");
@@ -63,7 +71,7 @@ export default function VerifyOtpPage() {
         motDePasse: "resend-trigger",
       });
     } catch {
-      // Expected to fail on password — we just need the OTP resent
+      // expected to fail on password — just need the OTP resent
     }
     setSuccess("Code resent. Check your email.");
     setResending(false);
@@ -95,7 +103,6 @@ export default function VerifyOtpPage() {
             {error}
           </div>
         )}
-
         {success && (
           <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
             {success}
@@ -116,7 +123,6 @@ export default function VerifyOtpPage() {
               className="text-center text-2xl tracking-widest"
             />
           </div>
-
           <Button type="submit" className="w-full gap-2" disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             {t("submit")}
@@ -129,19 +135,12 @@ export default function VerifyOtpPage() {
             disabled={resending}
             className="font-medium text-primary hover:underline disabled:opacity-50"
           >
-            {resending ? (
-              <Loader2 className="inline h-3 w-3 animate-spin" />
-            ) : (
-              t("resend")
-            )}
+            {resending ? <Loader2 className="inline h-3 w-3 animate-spin" /> : t("resend")}
           </button>
         </div>
 
         <div className="mt-3 text-center">
-          <Link
-            href={`/${locale}/login`}
-            className="text-sm text-muted-foreground hover:underline"
-          >
+          <Link href={`/${locale}/login`} className="text-sm text-muted-foreground hover:underline">
             {t("back")}
           </Link>
         </div>

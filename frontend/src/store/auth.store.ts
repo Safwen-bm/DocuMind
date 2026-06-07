@@ -1,4 +1,4 @@
-// C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\store\auth.store.ts
+// frontend/src/store/auth.store.ts
 
 import { create } from "zustand";
 
@@ -12,28 +12,32 @@ interface User {
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
+  hydrated: boolean;          // ← new
   pendingEmail: string | null;
   justLoggedIn: boolean;
   setAuth: (user: User) => void;
   setPendingEmail: (email: string) => void;
   logout: () => void;
   setJustLoggedIn: (val: boolean) => void;
+  setHydrated: () => void;    // ← new
 }
 
 export const useAuthStore = create<AuthState>()((set) => ({
   user: null,
   isAuthenticated: false,
+  hydrated: false,             // ← starts false
   pendingEmail: null,
   justLoggedIn: false,
 
   setAuth: (user) => {
-    // No localStorage, no manual cookie — backend set the httpOnly cookie
     set({ user, isAuthenticated: true });
   },
 
   setPendingEmail: (email) => set({ pendingEmail: email }),
 
   setJustLoggedIn: (val) => set({ justLoggedIn: val }),
+
+  setHydrated: () => set({ hydrated: true }),  // ← new
 
   logout: async () => {
     try {
@@ -42,11 +46,11 @@ export const useAuthStore = create<AuthState>()((set) => ({
         credentials: "include",
       });
     } catch {
-      // ignore network errors on logout
+      // ignore
     }
     if (typeof window !== "undefined") {
       document.cookie = "access_token=; path=/; max-age=0; SameSite=Lax";
     }
-    set({ user: null, isAuthenticated: false, pendingEmail: null });
+    set({ user: null, isAuthenticated: false, pendingEmail: null, hydrated: true });
   },
 }));

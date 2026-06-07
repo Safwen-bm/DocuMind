@@ -25,6 +25,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // replace handleSubmit in login/page.tsx
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
@@ -34,13 +36,20 @@ export default function LoginPage() {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
+    // grab redirect param if present
+    const redirect =
+      new URLSearchParams(window.location.search).get("redirect") ?? "";
+
     try {
-      await api.post("/auth/login", {
-        email,
-        motDePasse: password,
-      });
+      await api.post("/auth/login", { email, motDePasse: password });
       setPendingEmail(email);
-      router.push(`/${locale}/verify-otp`);
+
+      // carry the redirect forward through OTP
+      const otpUrl = redirect
+        ? `/${locale}/verify-otp?redirect=${encodeURIComponent(redirect)}`
+        : `/${locale}/verify-otp`;
+
+      router.push(otpUrl);
     } catch (err: any) {
       const msg = err.response?.data?.message;
       if (msg?.includes("verrouillé")) {

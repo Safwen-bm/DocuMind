@@ -1,5 +1,3 @@
-// C:\Users\MSI\Desktop\Projet\pfe-project\backend\src\ai\ai.service.ts
-
 import {
   Injectable,
   NotFoundException,
@@ -12,9 +10,6 @@ import { PlansService } from '../plans/plans.service';
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
-// ── Groq rate limit / quota error response ────────────────────────────────────
-// When Groq returns 429 (rate limit) or 503 (quota), we return a friendly message
-// instead of crashing — honest UX like Claude's "I've reached my limit" message
 function groqQuotaMessage(status: number, retryAfter?: string): string {
   if (status === 429) {
     const seconds = retryAfter ? parseInt(retryAfter) : 30;
@@ -22,6 +17,8 @@ function groqQuotaMessage(status: number, retryAfter?: string): string {
   }
   return `⚠️ Le service IA est temporairement indisponible. Réessaie dans quelques instants.`;
 }
+
+const EMBEDDING_RATE_LIMITED = "⚠️ Le service d'indexation est temporairement saturé. Réessaie dans quelques instants.";
 
 @Injectable()
 export class AiService {
@@ -34,9 +31,7 @@ export class AiService {
     if (!node) return '';
     if (node.type === 'text') return node.text || '';
     if (node.content && Array.isArray(node.content)) {
-      return node.content
-        .map((child: any) => this.extractText(child))
-        .join(' ');
+      return node.content.map((child: any) => this.extractText(child)).join(' ');
     }
     return '';
   }
@@ -51,7 +46,8 @@ export class AiService {
     return chunks.filter((c) => c.trim().length > 20);
   }
 
-  private async getEmbedding(text: string): Promise<number[]> {
+  // Returns null on 429 — callers must handle null and show a friendly message
+  private async getEmbedding(text: string): Promise<number[] | null> {
     const key = process.env.GEMINI_API_KEY;
     const res = await fetch(
       `${GEMINI_BASE}/models/gemini-embedding-001:embedContent?key=${key}`,
@@ -61,6 +57,7 @@ export class AiService {
         body: JSON.stringify({ content: { parts: [{ text }] } }),
       },
     );
+    if (res.status === 429) return null;
     if (!res.ok) {
       const err = await res.text();
       throw new Error(`Embedding API error: ${res.status} ${err}`);
@@ -69,17 +66,12 @@ export class AiService {
     return data.embedding.values;
   }
 
-  async getEmbeddingPublic(text: string): Promise<number[]> {
+  // Public wrapper — also returns null on 429
+  async getEmbeddingPublic(text: string): Promise<number[] | null> {
     return this.getEmbedding(text);
   }
 
-  // ── generateText — with Groq quota/rate limit handling ───────────────────
-  // Returns a user-friendly string instead of throwing when Groq is rate-limited.
-  // This gives users the honest "I've reached my limit" experience.
-  private async generateText(
-    prompt: string,
-    systemPrompt?: string,
-  ): Promise<string> {
+  private async generateText(prompt: string, systemPrompt?: string): Promise<string> {
     const messages: { role: string; content: string }[] = [];
     if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
     messages.push({ role: 'user', content: prompt });
@@ -98,17 +90,14 @@ export class AiService {
       }),
     });
 
-    // ── Groq quota / rate limit — return friendly message, don't throw ──────
     if (res.status === 429 || res.status === 503) {
       const retryAfter = res.headers.get('retry-after') ?? undefined;
       return groqQuotaMessage(res.status, retryAfter);
     }
-
     if (!res.ok) {
       const err = await res.text();
       throw new Error(`Groq API error: ${res.status} ${err}`);
     }
-
     const data = await res.json();
     return data.choices?.[0]?.message?.content ?? 'No response generated.';
   }
@@ -123,23 +112,19 @@ export class AiService {
 
     const prompts: Record<string, { system: string; user: string }> = {
       improve: {
-        system:
-          'You are an expert editor. Improve the following text: fix grammar, enhance clarity, strengthen vocabulary, and improve flow. Keep the same language and meaning. Return ONLY the improved text, no explanation.',
+        system: 'You are an expert editor. Improve the following text: fix grammar, enhance clarity, strengthen vocabulary, and improve flow. Keep the same language and meaning. Return ONLY the improved text, no explanation.',
         user: text,
       },
       simplify: {
-        system:
-          'You are a language simplification expert. Rewrite the following text in plain, simple language. Remove jargon. Keep the same language. Return ONLY the simplified text, no explanation.',
+        system: 'You are a language simplification expert. Rewrite the following text in plain, simple language. Remove jargon. Keep the same language. Return ONLY the simplified text, no explanation.',
         user: text,
       },
       rephrase: {
-        system:
-          'You are a writing assistant. Rephrase the following text differently while keeping the exact same meaning. Keep the same language. Return ONLY the rephrased text, no explanation.',
+        system: 'You are a writing assistant. Rephrase the following text differently while keeping the exact same meaning. Keep the same language. Return ONLY the rephrased text, no explanation.',
         user: text,
       },
       translate: {
-        system:
-          'You are a professional translator. Translate the following text to English. If it is already in English, translate it to French. Return ONLY the translated text, no explanation.',
+        system: 'You are a professional translator. Translate the following text to English. If it is already in English, translate it to French. Return ONLY the translated text, no explanation.',
         user: text,
       },
     };
@@ -157,42 +142,30 @@ export class AiService {
   ): Promise<string> {
     const doc = await this.prisma.document.findUnique({
       where: { id: docId },
-      include: {
-        workspace: {
-          include: { membres: { where: { utilisateurId: userId } } },
-        },
-      },
+      include: { workspace: { include: { membres: { where: { utilisateurId: userId } } } } },
     });
     if (!doc) throw new NotFoundException('Document not found.');
-    if (!doc.workspace.membres.length)
-      throw new ForbiddenException('Access denied.');
+    if (!doc.workspace.membres.length) throw new ForbiddenException('Access denied.');
 
     const text = this.extractText(doc.contenu);
-    if (!text || text.trim().length < 30)
-      throw new BadRequestException('Document is too short.');
+    if (!text || text.trim().length < 30) throw new BadRequestException('Document is too short.');
 
     const truncated = text.slice(0, 8000);
-
-    // All prompts now include language instruction
     const prompts: Record<string, { system: string; user: string }> = {
       decisions: {
-        system:
-          'You are an expert analyst. Extract all decisions, conclusions, and agreed-upon points from the document. Present them as a numbered list. Always respond in the same language as the document content. Output ONLY the list.',
+        system: 'You are an expert analyst. Extract all decisions, conclusions, and agreed-upon points from the document. Present them as a numbered list. Always respond in the same language as the document content. Output ONLY the list.',
         user: `Document title: ${doc.titre}\n\nContent:\n${truncated}`,
       },
       tasks: {
-        system:
-          'You are a project manager assistant. Convert the content of this document into a clear, actionable task list. Each task should start with a verb. Always respond in the same language as the document content. Output ONLY the task list.',
+        system: 'You are a project manager assistant. Convert the content of this document into a clear, actionable task list. Each task should start with a verb. Always respond in the same language as the document content. Output ONLY the task list.',
         user: `Document title: ${doc.titre}\n\nContent:\n${truncated}`,
       },
       keypoints: {
-        system:
-          'You are a professional summarizer. Extract the 5 to 10 most important key points from this document as a bullet list. Always respond in the same language as the document content. Output ONLY the key points.',
+        system: 'You are a professional summarizer. Extract the 5 to 10 most important key points from this document as a bullet list. Always respond in the same language as the document content. Output ONLY the key points.',
         user: `Document title: ${doc.titre}\n\nContent:\n${truncated}`,
       },
       structure: {
-        system:
-          "You are a document architect. Generate a clean report structure with sections and subsections based on this document's content. Always respond in the same language as the document content. Output ONLY the structure.",
+        system: "You are a document architect. Generate a clean report structure with sections and subsections based on this document's content. Always respond in the same language as the document content. Output ONLY the structure.",
         user: `Document title: ${doc.titre}\n\nContent:\n${truncated}`,
       },
     };
@@ -205,20 +178,21 @@ export class AiService {
   // ── Index document + auto-tags ────────────────────────────────────────────
   async indexDocument(documentId: string): Promise<void> {
     try {
-      const doc = await this.prisma.document.findUnique({
-        where: { id: documentId },
-      });
+      const doc = await this.prisma.document.findUnique({ where: { id: documentId } });
       if (!doc || !doc.contenu) return;
 
       const text = this.extractText(doc.contenu);
       if (!text.trim()) return;
 
       const chunks = this.chunkText(text);
-      await this.prisma
-        .$executeRaw`DELETE FROM document_chunks WHERE "documentId" = ${documentId}`;
+      await this.prisma.$executeRaw`DELETE FROM document_chunks WHERE "documentId" = ${documentId}`;
 
       for (let i = 0; i < chunks.length; i++) {
         const embedding = await this.getEmbedding(chunks[i]);
+        if (!embedding) {
+          console.warn(`Embedding rate-limited for doc ${documentId}, chunk ${i} — skipping`);
+          continue;
+        }
         const vectorStr = `[${embedding.join(',')}]`;
         await this.prisma.$executeRaw`
           INSERT INTO document_chunks ("id", "documentId", "contenu", "embedding", "chunkIndex", "dateCreation")
@@ -226,25 +200,16 @@ export class AiService {
         `;
       }
 
-      await this.prisma.document.update({
-        where: { id: documentId },
-        data: { estIndexe: true },
-      });
+      await this.prisma.document.update({ where: { id: documentId }, data: { estIndexe: true } });
       console.log(`Indexed doc ${documentId} — ${chunks.length} chunks`);
-
-      // ── Feature 4: Auto-tags — extract 3-5 keywords from the document ──────
-      // Fire and forget after indexing — never blocks anything
       this.extractAndSaveTags(documentId, text).catch(() => {});
     } catch (err) {
       console.error('Indexing error for doc', documentId, err);
     }
   }
 
-  // ── Feature 4: Extract tags with Groq ────────────────────────────────────
-  private async extractAndSaveTags(
-    documentId: string,
-    text: string,
-  ): Promise<void> {
+  // ── Auto-tags ─────────────────────────────────────────────────────────────
+  private async extractAndSaveTags(documentId: string, text: string): Promise<void> {
     try {
       const prompt = `Extract 3 to 5 short keywords or tags that best describe the following document.
 Rules:
@@ -260,37 +225,27 @@ ${text.slice(0, 2000)}
 JSON array of tags:`;
 
       const raw = await this.generateText(prompt);
-
-      // If Groq is rate limited, skip tag extraction silently
       if (raw.startsWith('⚠️')) return;
 
-      // Parse the JSON array
       const cleaned = raw.replace(/```json|```/g, '').trim();
       const tags: string[] = JSON.parse(cleaned);
 
       if (Array.isArray(tags) && tags.length > 0) {
         await this.prisma.document.update({
           where: { id: documentId },
-          data: {
-            tags: tags.slice(0, 5).map((t) => String(t).toLowerCase().trim()),
-          },
+          data: { tags: tags.slice(0, 5).map((t) => String(t).toLowerCase().trim()) },
         });
         console.log(`Tags saved for doc ${documentId}: ${tags.join(', ')}`);
       }
     } catch {
-      // Tag extraction is best-effort — silently ignore failures
+      // best-effort
     }
   }
 
   // ── Reindex workspace ─────────────────────────────────────────────────────
-  async reindexWorkspace(
-    userId: string,
-    workspaceId: string,
-  ): Promise<{ indexed: number }> {
+  async reindexWorkspace(userId: string, workspaceId: string): Promise<{ indexed: number }> {
     const membre = await this.prisma.membreWorkspace.findUnique({
-      where: {
-        utilisateurId_workspaceId: { utilisateurId: userId, workspaceId },
-      },
+      where: { utilisateurId_workspaceId: { utilisateurId: userId, workspaceId } },
     });
     if (!membre) throw new ForbiddenException('Accès refusé.');
 
@@ -298,7 +253,6 @@ JSON array of tags:`;
       where: { workspaceId, estArchive: false },
       select: { id: true },
     });
-
     for (const doc of docs) this.indexDocument(doc.id);
     return { indexed: docs.length };
   }
@@ -312,45 +266,33 @@ JSON array of tags:`;
     conversationId?: string,
   ): Promise<{ answer: string; sources: any[]; conversationId: string }> {
     const membre = await this.prisma.membreWorkspace.findUnique({
-      where: {
-        utilisateurId_workspaceId: { utilisateurId: userId, workspaceId },
-      },
+      where: { utilisateurId_workspaceId: { utilisateurId: userId, workspaceId } },
     });
     if (!membre) throw new ForbiddenException('Accès refusé.');
 
-    // ── Plan limit check ────────────────────────────────────────────────
     await this.plans.assertCanUseAi(userId, workspaceId);
 
     let conversation = conversationId
-      ? await this.prisma.conversation.findUnique({
-          where: { id: conversationId },
-        })
+      ? await this.prisma.conversation.findUnique({ where: { id: conversationId } })
       : null;
 
     if (!conversation) {
-      const titre =
-        question.length > 60 ? question.slice(0, 57) + '...' : question;
+      const titre = question.length > 60 ? question.slice(0, 57) + '...' : question;
       conversation = await this.prisma.conversation.create({
-        data: {
-          utilisateurId: userId,
-          workspaceId,
-          documentId: docId || null,
-          titre,
-        },
+        data: { utilisateurId: userId, workspaceId, documentId: docId || null, titre },
       });
     }
 
     await this.prisma.messageIA.create({
-      data: {
-        conversationId: conversation.id,
-        role: RoleIA.UTILISATEUR,
-        contenu: question,
-      },
+      data: { conversationId: conversation.id, role: RoleIA.UTILISATEUR, contenu: question },
     });
 
     const questionEmbedding = await this.getEmbedding(question);
-    const vectorStr = `[${questionEmbedding.join(',')}]`;
+    if (!questionEmbedding) {
+      return { answer: EMBEDDING_RATE_LIMITED, sources: [], conversationId: conversation.id };
+    }
 
+    const vectorStr = `[${questionEmbedding.join(',')}]`;
     const chunks = await this.prisma.$queryRaw<any[]>`
       SELECT dc.id, dc."documentId", dc.contenu, d.titre,
         1 - (dc.embedding <=> ${vectorStr}::vector) as similarity
@@ -367,29 +309,16 @@ JSON array of tags:`;
     let sources: any[] = [];
 
     if (chunks.length === 0) {
-      answer =
-        "Je n'ai trouvé aucun contenu pertinent dans les documents. Assurez-vous que les documents ont été sauvegardés pour être indexés.";
+      answer = "Je n'ai trouvé aucun contenu pertinent dans les documents. Assurez-vous que les documents ont été sauvegardés pour être indexés.";
     } else {
-      const context = chunks
-        .map((c, i) => `[Source ${i + 1} — ${c.titre}]:\n${c.contenu}`)
-        .join('\n\n');
-      // ── Feature 2: Language detection added to prompt ─────────────────────
+      const context = chunks.map((c, i) => `[Source ${i + 1} — ${c.titre}]:\n${c.contenu}`).join('\n\n');
       answer = await this.generateText(
         `You are a helpful assistant that answers questions based strictly on the provided document context. Do not use outside knowledge. Always respond in the same language as the question.\n\nContext:\n${context}\n\nQuestion: ${question}\n\nAnswer based only on the context above. If the answer is not in the context, say so clearly in the same language as the question.`,
       );
-
       const seen = new Set<string>();
       sources = chunks
-        .filter((c) => {
-          if (seen.has(c.documentId)) return false;
-          seen.add(c.documentId);
-          return true;
-        })
-        .map((c) => ({
-          documentId: c.documentId,
-          titre: c.titre,
-          excerpt: c.contenu.slice(0, 150) + '...',
-        }));
+        .filter((c) => { if (seen.has(c.documentId)) return false; seen.add(c.documentId); return true; })
+        .map((c) => ({ documentId: c.documentId, titre: c.titre, excerpt: c.contenu.slice(0, 150) + '...' }));
     }
 
     await this.prisma.messageIA.create({
@@ -400,15 +329,8 @@ JSON array of tags:`;
         sources: sources.length > 0 ? (sources as any) : Prisma.JsonNull,
       },
     });
-
-    await this.prisma.conversation.update({
-      where: { id: conversation.id },
-      data: { dateMiseAJour: new Date() },
-    });
-
-    // ── Increment usage — right before return ───────────────────────────
+    await this.prisma.conversation.update({ where: { id: conversation.id }, data: { dateMiseAJour: new Date() } });
     await this.plans.incrementAiUsage(userId, workspaceId);
-
     return { answer, sources, conversationId: conversation.id };
   }
 
@@ -421,89 +343,64 @@ JSON array of tags:`;
     conversationId?: string,
   ): Promise<{ answer: string; sources: any[]; conversationId: string }> {
     const membre = await this.prisma.membreWorkspace.findUnique({
-      where: {
-        utilisateurId_workspaceId: { utilisateurId: userId, workspaceId },
-      },
+      where: { utilisateurId_workspaceId: { utilisateurId: userId, workspaceId } },
     });
     if (!membre) throw new ForbiddenException('Accès refusé.');
 
-    // ── Plan limit check ────────────────────────────────────────────────
     await this.plans.assertCanUseAi(userId, workspaceId);
 
-    if (!documentIds || documentIds.length === 0) {
+    if (!documentIds || documentIds.length === 0)
       throw new BadRequestException('At least one document must be selected.');
-    }
 
     let conversation = conversationId
-      ? await this.prisma.conversation.findUnique({
-          where: { id: conversationId },
-        })
+      ? await this.prisma.conversation.findUnique({ where: { id: conversationId } })
       : null;
 
     if (!conversation) {
-      const titre =
-        question.length > 60 ? question.slice(0, 57) + '...' : question;
+      const titre = question.length > 60 ? question.slice(0, 57) + '...' : question;
       conversation = await this.prisma.conversation.create({
         data: { utilisateurId: userId, workspaceId, documentId: null, titre },
       });
     }
 
     await this.prisma.messageIA.create({
-      data: {
-        conversationId: conversation.id,
-        role: RoleIA.UTILISATEUR,
-        contenu: question,
-      },
+      data: { conversationId: conversation.id, role: RoleIA.UTILISATEUR, contenu: question },
     });
 
     const questionEmbedding = await this.getEmbedding(question);
-    const vectorStr = `[${questionEmbedding.join(',')}]`;
+    if (!questionEmbedding) {
+      return { answer: EMBEDDING_RATE_LIMITED, sources: [], conversationId: conversation.id };
+    }
 
-    // Fetch all workspace chunks ordered by similarity, filter in JS
-    // This avoids the text=uuid type error with Prisma raw queries entirely
+    const vectorStr = `[${questionEmbedding.join(',')}]`;
     const allChunks = await this.prisma.$queryRaw<any[]>`
-  SELECT dc.id, dc."documentId", dc.contenu, d.titre,
-    1 - (dc.embedding <=> ${vectorStr}::vector) as similarity
-  FROM document_chunks dc
-  JOIN documents d ON d.id = dc."documentId"
-  WHERE d."workspaceId" = ${workspaceId}
-    AND d."estArchive" = false
-  ORDER BY dc.embedding <=> ${vectorStr}::vector
-  LIMIT 50
-`;
+      SELECT dc.id, dc."documentId", dc.contenu, d.titre,
+        1 - (dc.embedding <=> ${vectorStr}::vector) as similarity
+      FROM document_chunks dc
+      JOIN documents d ON d.id = dc."documentId"
+      WHERE d."workspaceId" = ${workspaceId}
+        AND d."estArchive" = false
+      ORDER BY dc.embedding <=> ${vectorStr}::vector
+      LIMIT 50
+    `;
 
     const docIdSet = new Set(documentIds);
-    const chunks = allChunks
-      .filter((c) => docIdSet.has(c.documentId))
-      .slice(0, 8);
+    const chunks = allChunks.filter((c) => docIdSet.has(c.documentId)).slice(0, 8);
 
     let answer: string;
     let sources: any[] = [];
 
     if (chunks.length === 0) {
-      answer =
-        "Aucun contenu indexé trouvé dans les documents sélectionnés. Assurez-vous qu'ils ont été sauvegardés après leur création.";
+      answer = "Aucun contenu indexé trouvé dans les documents sélectionnés. Assurez-vous qu'ils ont été sauvegardés après leur création.";
     } else {
-      const context = chunks
-        .map((c, i) => `[Source ${i + 1} — ${c.titre}]:\n${c.contenu}`)
-        .join('\n\n');
-      // ── Feature 2: Language detection ─────────────────────────────────────
+      const context = chunks.map((c, i) => `[Source ${i + 1} — ${c.titre}]:\n${c.contenu}`).join('\n\n');
       answer = await this.generateText(
         `You are a helpful assistant. Answer the question based ONLY on the following documents. Do not use outside knowledge. Always respond in the same language as the question.\n\nDocuments:\n${context}\n\nQuestion: ${question}\n\nAnswer:`,
       );
-
       const seen = new Set<string>();
       sources = chunks
-        .filter((c) => {
-          if (seen.has(c.documentId)) return false;
-          seen.add(c.documentId);
-          return true;
-        })
-        .map((c) => ({
-          documentId: c.documentId,
-          titre: c.titre,
-          excerpt: c.contenu.slice(0, 150) + '...',
-        }));
+        .filter((c) => { if (seen.has(c.documentId)) return false; seen.add(c.documentId); return true; })
+        .map((c) => ({ documentId: c.documentId, titre: c.titre, excerpt: c.contenu.slice(0, 150) + '...' }));
     }
 
     await this.prisma.messageIA.create({
@@ -514,14 +411,8 @@ JSON array of tags:`;
         sources: sources.length > 0 ? (sources as any) : Prisma.JsonNull,
       },
     });
-
-    await this.prisma.conversation.update({
-      where: { id: conversation.id },
-      data: { dateMiseAJour: new Date() },
-    });
-
+    await this.prisma.conversation.update({ where: { id: conversation.id }, data: { dateMiseAJour: new Date() } });
     await this.plans.incrementAiUsage(userId, workspaceId);
-
     return { answer, sources, conversationId: conversation.id };
   }
 
@@ -531,16 +422,9 @@ JSON array of tags:`;
     workspaceId: string,
     question: string,
     conversationId?: string,
-  ): Promise<{
-    answer: string;
-    sources: any[];
-    conversationId: string;
-    isMeta: boolean;
-  }> {
+  ): Promise<{ answer: string; sources: any[]; conversationId: string; isMeta: boolean }> {
     const membre = await this.prisma.membreWorkspace.findUnique({
-      where: {
-        utilisateurId_workspaceId: { utilisateurId: userId, workspaceId },
-      },
+      where: { utilisateurId_workspaceId: { utilisateurId: userId, workspaceId } },
     });
     if (!membre) throw new ForbiddenException('Accès refusé.');
 
@@ -555,7 +439,6 @@ JSON array of tags:`;
 Question: "${question}"
 
 Reply with ONLY one of these two exact strings: workspace_meta OR document_rag`;
-
       const intent = await this.generateText(classifyPrompt);
       isMeta = intent.trim().toLowerCase().includes('workspace_meta');
     } catch {
@@ -563,126 +446,88 @@ Reply with ONLY one of these two exact strings: workspace_meta OR document_rag`;
     }
 
     let conversation = conversationId
-      ? await this.prisma.conversation.findUnique({
-          where: { id: conversationId },
-        })
+      ? await this.prisma.conversation.findUnique({ where: { id: conversationId } })
       : null;
 
     if (!conversation) {
-      const titre =
-        question.length > 60 ? question.slice(0, 57) + '...' : question;
+      const titre = question.length > 60 ? question.slice(0, 57) + '...' : question;
       conversation = await this.prisma.conversation.create({
         data: { utilisateurId: userId, workspaceId, documentId: null, titre },
       });
     }
 
     await this.prisma.messageIA.create({
-      data: {
-        conversationId: conversation.id,
-        role: RoleIA.UTILISATEUR,
-        contenu: question,
-      },
+      data: { conversationId: conversation.id, role: RoleIA.UTILISATEUR, contenu: question },
     });
 
     let answer: string;
     const sources: any[] = [];
 
     if (isMeta) {
-      const [members, recentDocs, recentActivity, docCount] = await Promise.all(
-        [
-          this.prisma.membreWorkspace.findMany({
-            where: { workspaceId },
-            include: { utilisateur: { select: { nom: true, email: true } } },
-            orderBy: { dateAdhesion: 'desc' },
-          }),
-          this.prisma.document.findMany({
-            where: { workspaceId, estArchive: false },
-            select: {
-              titre: true,
-              dateMiseAJour: true,
-              author: { select: { nom: true } },
-            },
-            orderBy: { dateMiseAJour: 'desc' },
-            take: 10,
-          }),
-          this.prisma.activite.findMany({
-            where: { workspaceId },
-            include: { user: { select: { nom: true } } },
-            orderBy: { dateCreation: 'desc' },
-            take: 20,
-          }),
-          this.prisma.document.count({
-            where: { workspaceId, estArchive: false },
-          }),
-        ],
-      );
+      const [members, recentDocs, recentActivity, docCount] = await Promise.all([
+        this.prisma.membreWorkspace.findMany({
+          where: { workspaceId },
+          include: { utilisateur: { select: { nom: true, email: true } } },
+          orderBy: { dateAdhesion: 'desc' },
+        }),
+        this.prisma.document.findMany({
+          where: { workspaceId, estArchive: false },
+          select: { titre: true, dateMiseAJour: true, author: { select: { nom: true } } },
+          orderBy: { dateMiseAJour: 'desc' },
+          take: 10,
+        }),
+        this.prisma.activite.findMany({
+          where: { workspaceId },
+          include: { user: { select: { nom: true } } },
+          orderBy: { dateCreation: 'desc' },
+          take: 20,
+        }),
+        this.prisma.document.count({ where: { workspaceId, estArchive: false } }),
+      ]);
 
       const membersText = members
-        .map(
-          (m) =>
-            `- ${m.utilisateur.nom} (${m.role}) — joined ${new Date(m.dateAdhesion).toLocaleDateString()}`,
-        )
+        .map((m) => `- ${m.utilisateur.nom} (${m.role}) — joined ${new Date(m.dateAdhesion).toLocaleDateString()}`)
         .join('\n');
-
       const docsText = recentDocs
-        .map(
-          (d) =>
-            `- "${d.titre}" by ${d.author.nom} — modified ${new Date(d.dateMiseAJour).toLocaleDateString()}`,
-        )
+        .map((d) => `- "${d.titre}" by ${d.author.nom} — modified ${new Date(d.dateMiseAJour).toLocaleDateString()}`)
         .join('\n');
-
       const activityText = recentActivity
-        .map(
-          (a) =>
-            `- ${a.user.nom}: ${a.action} on ${new Date(a.dateCreation).toLocaleDateString()}`,
-        )
+        .map((a) => `- ${a.user.nom}: ${a.action} on ${new Date(a.dateCreation).toLocaleDateString()}`)
         .join('\n');
 
-      // ── Feature 2: Language detection ─────────────────────────────────────
       answer = await this.generateText(
         `You are a helpful workspace secretary. Answer the question using ONLY the workspace data below. Be concise. Always respond in the same language as the question.\n\nWorkspace data:\nMEMBERS (${members.length} total):\n${membersText}\n\nRECENT DOCUMENTS (${docCount} total):\n${docsText}\n\nRECENT ACTIVITY:\n${activityText}\n\nQuestion: ${question}\n\nAnswer:`,
       );
     } else {
+      // ── RAG path — needs embedding ─────────────────────────────────────────
       const questionEmbedding = await this.getEmbedding(question);
-      const vectorStr = `[${questionEmbedding.join(',')}]`;
-
-      const chunks = await this.prisma.$queryRaw<any[]>`
-        SELECT dc.id, dc."documentId", dc.contenu, d.titre,
-          1 - (dc.embedding <=> ${vectorStr}::vector) as similarity
-        FROM document_chunks dc
-        JOIN documents d ON d.id = dc."documentId"
-        WHERE d."workspaceId" = ${workspaceId}
-          AND d."estArchive" = false
-        ORDER BY dc.embedding <=> ${vectorStr}::vector
-        LIMIT 5
-      `;
-
-      if (chunks.length === 0) {
-        answer =
-          'Aucun contenu indexé trouvé. Assurez-vous que vos documents ont été sauvegardés pour être indexés.';
+      if (!questionEmbedding) {
+        answer = EMBEDDING_RATE_LIMITED;
       } else {
-        const context = chunks
-          .map((c, i) => `[Source ${i + 1} — ${c.titre}]:\n${c.contenu}`)
-          .join('\n\n');
-        // ── Feature 2: Language detection ───────────────────────────────────
-        answer = await this.generateText(
-          `You are a helpful assistant. Answer based strictly on the provided context. Always respond in the same language as the question.\n\nContext:\n${context}\n\nQuestion: ${question}\n\nAnswer:`,
-        );
+        const vectorStr = `[${questionEmbedding.join(',')}]`;
+        const chunks = await this.prisma.$queryRaw<any[]>`
+          SELECT dc.id, dc."documentId", dc.contenu, d.titre,
+            1 - (dc.embedding <=> ${vectorStr}::vector) as similarity
+          FROM document_chunks dc
+          JOIN documents d ON d.id = dc."documentId"
+          WHERE d."workspaceId" = ${workspaceId}
+            AND d."estArchive" = false
+          ORDER BY dc.embedding <=> ${vectorStr}::vector
+          LIMIT 5
+        `;
 
-        const seen = new Set<string>();
-        chunks
-          .filter((c) => {
-            if (seen.has(c.documentId)) return false;
-            seen.add(c.documentId);
-            return true;
-          })
-          .forEach((c) =>
-            sources.push({
-              documentId: c.documentId,
-              titre: c.titre,
-              excerpt: c.contenu.slice(0, 150) + '...',
-            }),
+        if (chunks.length === 0) {
+          answer = 'Aucun contenu indexé trouvé. Assurez-vous que vos documents ont été sauvegardés pour être indexés.';
+        } else {
+          const context = chunks.map((c, i) => `[Source ${i + 1} — ${c.titre}]:\n${c.contenu}`).join('\n\n');
+          answer = await this.generateText(
+            `You are a helpful assistant. Answer based strictly on the provided context. Always respond in the same language as the question.\n\nContext:\n${context}\n\nQuestion: ${question}\n\nAnswer:`,
           );
+          const seen = new Set<string>();
+          chunks
+            .filter((c) => { if (seen.has(c.documentId)) return false; seen.add(c.documentId); return true; })
+            .forEach((c) => sources.push({ documentId: c.documentId, titre: c.titre, excerpt: c.contenu.slice(0, 150) + '...' }));
+        }
       }
     }
 
@@ -694,23 +539,13 @@ Reply with ONLY one of these two exact strings: workspace_meta OR document_rag`;
         sources: sources.length > 0 ? (sources as any) : Prisma.JsonNull,
       },
     });
-
-    await this.prisma.conversation.update({
-      where: { id: conversation.id },
-      data: { dateMiseAJour: new Date() },
-    });
-
+    await this.prisma.conversation.update({ where: { id: conversation.id }, data: { dateMiseAJour: new Date() } });
     await this.plans.incrementAiUsage(userId, workspaceId);
-
     return { answer, sources, conversationId: conversation.id, isMeta };
   }
 
-  // ── Feature 5: Export conversation as PDF ─────────────────────────────────
-  // Fetches all messages, builds an HTML page, runs Puppeteer → PDF buffer
-  async exportConversation(
-    userId: string,
-    conversationId: string,
-  ): Promise<Buffer> {
+  // ── Export conversation as PDF ────────────────────────────────────────────
+  async exportConversation(userId: string, conversationId: string): Promise<Buffer> {
     const conversation = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
       include: {
@@ -720,8 +555,7 @@ Reply with ONLY one of these two exact strings: workspace_meta OR document_rag`;
     });
 
     if (!conversation) throw new NotFoundException('Conversation introuvable.');
-    if (conversation.utilisateurId !== userId)
-      throw new ForbiddenException('Accès refusé.');
+    if (conversation.utilisateurId !== userId) throw new ForbiddenException('Accès refusé.');
 
     const messagesHtml = conversation.messages
       .map((msg) => {
@@ -729,12 +563,8 @@ Reply with ONLY one of these two exact strings: workspace_meta OR document_rag`;
         const sources = msg.sources as any[] | null;
         const sourcesHtml =
           sources && sources.length > 0
-            ? `<div class="sources">
-              <p class="sources-label">Sources :</p>
-              ${sources.map((s) => `<span class="source-badge">${s.titre}</span>`).join('')}
-            </div>`
+            ? `<div class="sources"><p class="sources-label">Sources :</p>${sources.map((s) => `<span class="source-badge">${s.titre}</span>`).join('')}</div>`
             : '';
-
         return `
           <div class="message ${isUser ? 'user' : 'assistant'}">
             <div class="message-header">
@@ -786,11 +616,7 @@ Reply with ONLY one of these two exact strings: workspace_meta OR document_rag`;
     const puppeteer = require('puppeteer');
     const browser = await puppeteer.launch({
       headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-      ],
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     });
 
     try {
@@ -808,15 +634,9 @@ Reply with ONLY one of these two exact strings: workspace_meta OR document_rag`;
   }
 
   // ── Conversations CRUD ────────────────────────────────────────────────────
-  async getConversations(
-    userId: string,
-    workspaceId: string,
-    docId?: string,
-  ): Promise<any[]> {
+  async getConversations(userId: string, workspaceId: string, docId?: string): Promise<any[]> {
     const membre = await this.prisma.membreWorkspace.findUnique({
-      where: {
-        utilisateurId_workspaceId: { utilisateurId: userId, workspaceId },
-      },
+      where: { utilisateurId_workspaceId: { utilisateurId: userId, workspaceId } },
     });
     if (!membre) throw new ForbiddenException('Accès refusé.');
 
@@ -832,32 +652,17 @@ Reply with ONLY one of these two exact strings: workspace_meta OR document_rag`;
     });
   }
 
-  async getConversationMessages(
-    userId: string,
-    conversationId: string,
-  ): Promise<any[]> {
-    const conversation = await this.prisma.conversation.findUnique({
-      where: { id: conversationId },
-    });
+  async getConversationMessages(userId: string, conversationId: string): Promise<any[]> {
+    const conversation = await this.prisma.conversation.findUnique({ where: { id: conversationId } });
     if (!conversation) throw new NotFoundException('Conversation introuvable.');
-    if (conversation.utilisateurId !== userId)
-      throw new ForbiddenException('Accès refusé.');
-    return this.prisma.messageIA.findMany({
-      where: { conversationId },
-      orderBy: { dateCreation: 'asc' },
-    });
+    if (conversation.utilisateurId !== userId) throw new ForbiddenException('Accès refusé.');
+    return this.prisma.messageIA.findMany({ where: { conversationId }, orderBy: { dateCreation: 'asc' } });
   }
 
-  async deleteConversation(
-    userId: string,
-    conversationId: string,
-  ): Promise<{ deleted: true }> {
-    const conversation = await this.prisma.conversation.findUnique({
-      where: { id: conversationId },
-    });
+  async deleteConversation(userId: string, conversationId: string): Promise<{ deleted: true }> {
+    const conversation = await this.prisma.conversation.findUnique({ where: { id: conversationId } });
     if (!conversation) throw new NotFoundException('Conversation introuvable.');
-    if (conversation.utilisateurId !== userId)
-      throw new ForbiddenException('Accès refusé.');
+    if (conversation.utilisateurId !== userId) throw new ForbiddenException('Accès refusé.');
     await this.prisma.conversation.delete({ where: { id: conversationId } });
     return { deleted: true };
   }
@@ -870,20 +675,13 @@ Reply with ONLY one of these two exact strings: workspace_meta OR document_rag`;
     if (!doc) throw new NotFoundException('Document introuvable.');
 
     const membre = await this.prisma.membreWorkspace.findUnique({
-      where: {
-        utilisateurId_workspaceId: {
-          utilisateurId: userId,
-          workspaceId: doc.workspace.id,
-        },
-      },
+      where: { utilisateurId_workspaceId: { utilisateurId: userId, workspaceId: doc.workspace.id } },
     });
     if (!membre) throw new ForbiddenException('Accès refusé.');
 
     const text = this.extractText(doc.contenu);
-    if (!text.trim())
-      return 'Ce document ne contient pas encore de contenu à résumer.';
+    if (!text.trim()) return 'Ce document ne contient pas encore de contenu à résumer.';
 
-    // ── Feature 2: Language detection ─────────────────────────────────────
     return this.generateText(
       `Summarize the following document clearly with key points. Always respond in the same language as the document content.\n\nTitle: ${doc.titre}\nContent:\n${text.slice(0, 8000)}\n\nConcise summary:`,
     );
@@ -892,21 +690,15 @@ Reply with ONLY one of these two exact strings: workspace_meta OR document_rag`;
   async simplify(userId: string, docId: string): Promise<string> {
     const doc = await this.prisma.document.findUnique({
       where: { id: docId },
-      include: {
-        workspace: {
-          include: { membres: { where: { utilisateurId: userId } } },
-        },
-      },
+      include: { workspace: { include: { membres: { where: { utilisateurId: userId } } } } },
     });
     if (!doc) throw new NotFoundException('Document not found.');
-    if (!doc.workspace.membres.length)
-      throw new ForbiddenException('Access denied.');
+    if (!doc.workspace.membres.length) throw new ForbiddenException('Access denied.');
 
     const rawText = this.extractText(doc.contenu);
     if (!rawText || rawText.trim().length < 30)
       throw new BadRequestException('Document is too short to simplify.');
 
-    // ── Feature 2: Language detection ─────────────────────────────────────
     return this.generateText(
       `Rewrite the following document in plain, accessible language. Keep the same meaning. Always respond in the same language as the original document. Output only the simplified text.\n\n${rawText.slice(0, 6000)}`,
     );
@@ -920,15 +712,11 @@ Reply with ONLY one of these two exact strings: workspace_meta OR document_rag`;
     dossierId?: string,
   ): Promise<{ documentId: string; content: any }> {
     const membre = await this.prisma.membreWorkspace.findUnique({
-      where: {
-        utilisateurId_workspaceId: { utilisateurId: userId, workspaceId },
-      },
+      where: { utilisateurId_workspaceId: { utilisateurId: userId, workspaceId } },
     });
     if (!membre) throw new ForbiddenException('Access denied.');
-    if (membre.role === 'LECTEUR')
-      throw new ForbiddenException('Read-only access.');
+    if (membre.role === 'LECTEUR') throw new ForbiddenException('Read-only access.');
 
-    // ── Plan limit check ────────────────────────────────────────────────
     await this.plans.assertCanCreateDocument(workspaceId);
 
     let rawResponse = await this.generateText(
@@ -948,30 +736,17 @@ Reply with ONLY one of these two exact strings: workspace_meta OR document_rag`;
       tiptapContent = {
         type: 'doc',
         content: [
-          {
-            type: 'heading',
-            attrs: { level: 1 },
-            content: [{ type: 'text', text: titre }],
-          },
+          { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: titre }] },
           ...rawResponse
             .split('\n\n')
             .filter(Boolean)
-            .map((para: string) => ({
-              type: 'paragraph',
-              content: [{ type: 'text', text: para.trim() }],
-            })),
+            .map((para: string) => ({ type: 'paragraph', content: [{ type: 'text', text: para.trim() }] })),
         ],
       };
     }
 
     const newDoc = await this.prisma.document.create({
-      data: {
-        titre,
-        contenu: tiptapContent,
-        workspaceId,
-        dossierId: dossierId ?? null,
-        authorId: userId,
-      },
+      data: { titre, contenu: tiptapContent, workspaceId, dossierId: dossierId ?? null, authorId: userId },
     });
 
     this.indexDocument(newDoc.id).catch(() => {});

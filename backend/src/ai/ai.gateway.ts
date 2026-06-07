@@ -1,5 +1,3 @@
-// C:\Users\MSI\Desktop\Projet\pfe-project\backend\src\ai\ai.gateway.ts
-
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -36,7 +34,7 @@ export class AiStreamGateway
     private prisma: PrismaService,
   ) {}
 
-  // ── Auth: verify JWT from cookie ──────────────────────────────────────────
+  // ── Auth: verify JWT from cookie or auth token ────────────────────────────
   async handleConnection(client: Socket) {
     try {
       const token =
@@ -75,7 +73,7 @@ export class AiStreamGateway
     const userId = (client as any).userId;
     if (!userId) { client.emit('ai-error', { message: 'Non authentifié.' }); return; }
 
-    const { workspaceId, question, docId, conversationId, mode } = payload;
+    const { workspaceId, question, docId, conversationId } = payload;
 
     // Verify membership
     const membre = await this.prisma.membreWorkspace.findUnique({
@@ -100,12 +98,34 @@ export class AiStreamGateway
       data: { conversationId: conversation.id, role: RoleIA.UTILISATEUR, contenu: question },
     });
 
-    // Emit conversationId to frontend immediately so it can track it
+    // Emit conversationId immediately so frontend can track it
     client.emit('ai-conversation-id', { conversationId: conversation.id });
 
     try {
-      // Get relevant chunks via embedding similarity
+      // Get embedding — returns null on Gemini 429
       const questionEmbedding = await this.aiService.getEmbeddingPublic(question);
+
+      if (!questionEmbedding) {
+        // Embedding rate-limited — emit friendly message, save it, done
+        const rateLimitMsg = "⚠️ Le service d'indexation est temporairement saturé. Réessaie dans quelques instants.";
+        client.emit('ai-token', { token: rateLimitMsg });
+        client.emit('ai-done', { sources: [], conversationId: conversation.id });
+
+        await this.prisma.messageIA.create({
+          data: {
+            conversationId: conversation.id,
+            role: RoleIA.ASSISTANT,
+            contenu: rateLimitMsg,
+            sources: Prisma.JsonNull,
+          },
+        });
+        await this.prisma.conversation.update({
+          where: { id: conversation.id },
+          data: { dateMiseAJour: new Date() },
+        });
+        return;
+      }
+
       const vectorStr = `[${questionEmbedding.join(',')}]`;
 
       const chunks = await this.prisma.$queryRaw<any[]>`
@@ -124,7 +144,6 @@ export class AiStreamGateway
       let sources: any[] = [];
 
       if (chunks.length === 0) {
-        // No chunks — emit a single message, no streaming needed
         fullAnswer = "Je n'ai trouvé aucun contenu pertinent. Assurez-vous que le document a été sauvegardé pour être indexé.";
         client.emit('ai-token', { token: fullAnswer });
         client.emit('ai-done', { sources: [], conversationId: conversation.id });
@@ -147,7 +166,7 @@ export class AiStreamGateway
             messages: [{ role: 'user', content: prompt }],
             temperature: 0.3,
             max_tokens: 2048,
-            stream: true, // ← enables SSE streaming from Groq
+            stream: true,
           }),
         });
 
@@ -160,7 +179,7 @@ export class AiStreamGateway
           client.emit('ai-error', { message: 'Erreur du service IA.' });
           return;
         } else {
-          // ── Read the SSE stream and forward each token ─────────────────
+          // ── Read SSE stream and forward each token ─────────────────────
           const reader = res.body!.getReader();
           const decoder = new TextDecoder();
           let buffer = '';
@@ -171,7 +190,7 @@ export class AiStreamGateway
 
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
-            buffer = lines.pop() ?? ''; // keep incomplete line in buffer
+            buffer = lines.pop() ?? '';
 
             for (const line of lines) {
               if (!line.startsWith('data: ')) continue;
@@ -183,20 +202,17 @@ export class AiStreamGateway
                 const token = json.choices?.[0]?.delta?.content;
                 if (token) {
                   fullAnswer += token;
-                  // Emit each token to frontend
                   client.emit('ai-token', { token });
                 }
               } catch { /* skip malformed chunks */ }
             }
           }
 
-          // Build sources
           const seen = new Set<string>();
           sources = chunks
             .filter((c) => { if (seen.has(c.documentId)) return false; seen.add(c.documentId); return true; })
             .map((c) => ({ documentId: c.documentId, titre: c.titre, excerpt: c.contenu.slice(0, 150) + '...' }));
 
-          // Signal completion with sources
           client.emit('ai-done', { sources, conversationId: conversation.id });
         }
       }

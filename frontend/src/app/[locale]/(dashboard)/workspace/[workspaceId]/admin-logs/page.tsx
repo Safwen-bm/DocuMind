@@ -1,6 +1,6 @@
-"use client"
-
 // C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\app\[locale]\(dashboard)\workspace\[workspaceId]\admin-logs\page.tsx
+
+"use client"
 
 import { useState, useRef } from "react"
 import { useParams } from "next/navigation"
