@@ -40,10 +40,11 @@ describe("UsageBanner", () => {
     expect(container.querySelector("div > *")).toBeNull();
   });
 
-  it("renders nothing for ENTERPRISE plan", () => {
+  it("renders enterprise badge for ENTERPRISE plan", () => {
     mockUseQuery.mockReturnValue({ data: makeUsage({ plan: "ENTERPRISE" }) });
-    const { container } = render(<UsageBanner workspaceId="ws-1" />);
-    expect(container.querySelector("div > *")).toBeNull();
+    render(<UsageBanner workspaceId="ws-1" />);
+    expect(screen.getByText("Enterprise")).toBeInTheDocument();
+    expect(screen.getByText("Unlimited")).toBeInTheDocument();
   });
 
   // ── FREE plan rendering ─────────────────────────────────────────────────────
