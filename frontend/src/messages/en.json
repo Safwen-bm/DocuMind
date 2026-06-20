@@ -12,7 +12,8 @@
       "emailPlaceholder": "name@company.com",
       "passwordPlaceholder": "Enter your password",
       "panelTitle": "Your knowledge, always at hand",
-      "panelSubtitle": "DocuMind combines structured document management with AI-powered retrieval so your team never loses knowledge again."
+      "panelSubtitle": "DocuMind combines structured document management with AI-powered retrieval so your team never loses knowledge again.",
+      "backHome": "Back to home"
     },
     "register": {
       "title": "Create your account",
@@ -29,7 +30,8 @@
       "passwordPlaceholder": "Min. 8 characters",
       "confirmPlaceholder": "Repeat your password",
       "panelTitle": "Start building your knowledge base",
-      "panelSubtitle": "Create your workspace, invite your team, and let AI help you manage and retrieve your documentation intelligently."
+      "panelSubtitle": "Create your workspace, invite your team, and let AI help you manage and retrieve your documentation intelligently.",
+      "backHome": "Back to home"
     },
     "otp": {
       "title": "Check your email",
@@ -676,7 +678,23 @@
       },
       "askAi": "Ask AI",
       "openAi": "Open AI Assistant",
-      "closeAi": "Close AI Assistant"
+      "closeAi": "Close AI Assistant",
+      "inlineAi": {
+        "trigger": "AI",
+        "menuTitle": "AI Actions",
+        "generating": "generating...",
+        "improve": "Improve",
+        "simplify": "Simplify",
+        "rephrase": "Rephrase",
+        "translate": "Translate",
+        "translateEn": "English",
+        "translateFr": "French",
+        "translateAr": "Arabic",
+        "generatingResult": "Generating…",
+        "apply": "Apply",
+        "cancel": "Cancel",
+        "errorRetry": "An error occurred. Please try again."
+      }
     },
     "ai": {
       "title": "AI Assistant",

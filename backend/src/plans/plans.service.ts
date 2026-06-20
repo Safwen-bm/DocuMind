@@ -47,11 +47,6 @@ export class PlansService {
   }
 
   // ── Check: can this user create another workspace? ────────────────────────
-  // Rule: first workspace is always free.
-  // Every additional workspace requires that new workspace to have an active
-  // paid subscription — enforced at payment time, not here.
-  // We only block if they already own 1+ workspaces AND are trying to create
-  // without going through the upgrade flow.
   async assertCanCreateWorkspace(userId: string): Promise<void> {
     const ownedCount = await this.prisma.workspace.count({
       where: { proprietaireId: userId },
@@ -72,8 +67,9 @@ export class PlansService {
     const limit = PLAN_LIMITS[plan].membersPerWorkspace;
     if (limit === Infinity) return;
 
+    // ── Only count ACTIVE members — soft-deleted ones don't occupy a seat ──
     const current = await this.prisma.membreWorkspace.count({
-      where: { workspaceId },
+      where: { workspaceId, estRetire: false },
     });
 
     if (current >= limit) {
@@ -155,7 +151,10 @@ export class PlansService {
     const [ownedWorkspaceCount, memberCount, documentCount, aiUsage] =
       await Promise.all([
         this.prisma.workspace.count({ where: { proprietaireId: userId } }),
-        this.prisma.membreWorkspace.count({ where: { workspaceId } }),
+        // ── Only count ACTIVE members for the usage display ────────────────
+        this.prisma.membreWorkspace.count({
+          where: { workspaceId, estRetire: false },
+        }),
         this.prisma.document.count({
           where: { workspaceId, estArchive: false },
         }),
@@ -169,7 +168,7 @@ export class PlansService {
 
     return {
       plan,
-      ownedWorkspaces: ownedWorkspaceCount, // just informational, no hard limit
+      ownedWorkspaces: ownedWorkspaceCount,
       members: {
         current: memberCount,
         limit: limits.membersPerWorkspace,

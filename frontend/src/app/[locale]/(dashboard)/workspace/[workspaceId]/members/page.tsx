@@ -1,3 +1,5 @@
+// C:\Users\MSI\Desktop\Projet\pfe-project\frontend\src\app\[locale]\(dashboard)\workspace\[workspaceId]\members\page.tsx
+
 "use client"
 
 import { useState } from "react"

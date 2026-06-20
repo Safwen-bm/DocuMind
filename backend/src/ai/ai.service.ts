@@ -1,3 +1,5 @@
+// C:\Users\MSI\Desktop\Projet\pfe-project\backend\src\ai\ai.service.ts
+
 import {
   Injectable,
   NotFoundException,
@@ -19,6 +21,16 @@ function groqQuotaMessage(status: number, retryAfter?: string): string {
 }
 
 const EMBEDDING_RATE_LIMITED = "⚠️ Le service d'indexation est temporairement saturé. Réessaie dans quelques instants.";
+
+// Detect the language of a question to use in system prompts
+function detectLanguageInstruction(text: string): string {
+  const arabicPattern = /[\u0600-\u06FF]/;
+  const frenchPattern = /\b(le|la|les|un|une|des|est|sont|avec|pour|dans|que|qui|comment|quoi|où|quand|pourquoi|bonjour|merci|s'il|vous|nous|je|tu|il|elle|ils|elles)\b/i;
+
+  if (arabicPattern.test(text)) return 'Arabic';
+  if (frenchPattern.test(text)) return 'French';
+  return 'English';
+}
 
 @Injectable()
 export class AiService {
@@ -105,26 +117,34 @@ export class AiService {
   // ── Inline rewrite ────────────────────────────────────────────────────────
   async inlineRewrite(
     text: string,
-    action: 'improve' | 'simplify' | 'rephrase' | 'translate',
+    action: 'improve' | 'simplify' | 'rephrase' | 'translate_en' | 'translate_fr' | 'translate_ar',
   ): Promise<string> {
     if (!text || text.trim().length < 5)
       throw new BadRequestException('Text is too short.');
 
     const prompts: Record<string, { system: string; user: string }> = {
       improve: {
-        system: 'You are an expert editor. Improve the following text: fix grammar, enhance clarity, strengthen vocabulary, and improve flow. Keep the same language and meaning. Return ONLY the improved text, no explanation.',
+        system: 'You are an expert editor. Improve the following text: fix grammar, enhance clarity, strengthen vocabulary, and improve flow. Keep the same language and meaning. Return ONLY the improved text, no explanation, no preamble.',
         user: text,
       },
       simplify: {
-        system: 'You are a language simplification expert. Rewrite the following text in plain, simple language. Remove jargon. Keep the same language. Return ONLY the simplified text, no explanation.',
+        system: 'You are a language simplification expert. Rewrite the following text in plain, simple language. Remove jargon. Keep the same language. Return ONLY the simplified text, no explanation, no preamble.',
         user: text,
       },
       rephrase: {
-        system: 'You are a writing assistant. Rephrase the following text differently while keeping the exact same meaning. Keep the same language. Return ONLY the rephrased text, no explanation.',
+        system: 'You are a writing assistant. Rephrase the following text differently while keeping the exact same meaning. Keep the same language. Return ONLY the rephrased text, no explanation, no preamble.',
         user: text,
       },
-      translate: {
-        system: 'You are a professional translator. Translate the following text to English. If it is already in English, translate it to French. Return ONLY the translated text, no explanation.',
+      translate_en: {
+        system: 'You are a professional translator. Translate the following text to English. Return ONLY the translated text in English, no explanation, no preamble, no notes.',
+        user: text,
+      },
+      translate_fr: {
+        system: 'You are a professional translator. Translate the following text to French. Return ONLY the translated text in French, no explanation, no preamble, no notes.',
+        user: text,
+      },
+      translate_ar: {
+        system: 'You are a professional translator. Translate the following text to Arabic. Return ONLY the translated text in Arabic, no explanation, no preamble, no notes.',
         user: text,
       },
     };
@@ -153,19 +173,19 @@ export class AiService {
     const truncated = text.slice(0, 8000);
     const prompts: Record<string, { system: string; user: string }> = {
       decisions: {
-        system: 'You are an expert analyst. Extract all decisions, conclusions, and agreed-upon points from the document. Present them as a numbered list. Always respond in the same language as the document content. Output ONLY the list.',
+        system: 'You are an expert analyst. Extract all decisions, conclusions, and agreed-upon points from the document. Present them as a numbered list. You MUST respond in the same language as the document content — if the document is in Arabic, respond in Arabic; if French, respond in French; if English, respond in English. Output ONLY the list, no explanation.',
         user: `Document title: ${doc.titre}\n\nContent:\n${truncated}`,
       },
       tasks: {
-        system: 'You are a project manager assistant. Convert the content of this document into a clear, actionable task list. Each task should start with a verb. Always respond in the same language as the document content. Output ONLY the task list.',
+        system: 'You are a project manager assistant. Convert the content of this document into a clear, actionable task list. Each task should start with a verb. You MUST respond in the same language as the document content — if the document is in Arabic, respond in Arabic; if French, respond in French; if English, respond in English. Output ONLY the task list, no explanation.',
         user: `Document title: ${doc.titre}\n\nContent:\n${truncated}`,
       },
       keypoints: {
-        system: 'You are a professional summarizer. Extract the 5 to 10 most important key points from this document as a bullet list. Always respond in the same language as the document content. Output ONLY the key points.',
+        system: 'You are a professional summarizer. Extract the 5 to 10 most important key points from this document as a bullet list. You MUST respond in the same language as the document content — if the document is in Arabic, respond in Arabic; if French, respond in French; if English, respond in English. Output ONLY the key points, no explanation.',
         user: `Document title: ${doc.titre}\n\nContent:\n${truncated}`,
       },
       structure: {
-        system: "You are a document architect. Generate a clean report structure with sections and subsections based on this document's content. Always respond in the same language as the document content. Output ONLY the structure.",
+        system: "You are a document architect. Generate a clean report structure with sections and subsections based on this document's content. You MUST respond in the same language as the document content — if the document is in Arabic, respond in Arabic; if French, respond in French; if English, respond in English. Output ONLY the structure, no explanation.",
         user: `Document title: ${doc.titre}\n\nContent:\n${truncated}`,
       },
     };
@@ -287,6 +307,26 @@ JSON array of tags:`;
       data: { conversationId: conversation.id, role: RoleIA.UTILISATEUR, contenu: question },
     });
 
+    // Detect the question language upfront for consistent responses
+    const questionLang = detectLanguageInstruction(question);
+
+    // Check if it's a translation request — handle directly without RAG
+    const isTranslationRequest = this.detectTranslationRequest(question);
+    if (isTranslationRequest && docId) {
+      const answer = await this.handleTranslationInChat(userId, docId, question, questionLang);
+      await this.prisma.messageIA.create({
+        data: {
+          conversationId: conversation.id,
+          role: RoleIA.ASSISTANT,
+          contenu: answer,
+          sources: Prisma.JsonNull,
+        },
+      });
+      await this.prisma.conversation.update({ where: { id: conversation.id }, data: { dateMiseAJour: new Date() } });
+      await this.plans.incrementAiUsage(userId, workspaceId);
+      return { answer, sources: [], conversationId: conversation.id };
+    }
+
     const questionEmbedding = await this.getEmbedding(question);
     if (!questionEmbedding) {
       return { answer: EMBEDDING_RATE_LIMITED, sources: [], conversationId: conversation.id };
@@ -309,11 +349,23 @@ JSON array of tags:`;
     let sources: any[] = [];
 
     if (chunks.length === 0) {
-      answer = "Je n'ai trouvé aucun contenu pertinent dans les documents. Assurez-vous que les documents ont été sauvegardés pour être indexés.";
+      const noContentMessages: Record<string, string> = {
+        Arabic: 'لم أجد أي محتوى ذي صلة في المستندات. تأكد من حفظ المستندات ليتم فهرستها.',
+        French: "Je n'ai trouvé aucun contenu pertinent dans les documents. Assurez-vous que les documents ont été sauvegardés pour être indexés.",
+        English: "I couldn't find any relevant content in the documents. Make sure the documents have been saved to be indexed.",
+      };
+      answer = noContentMessages[questionLang] || noContentMessages.French;
     } else {
       const context = chunks.map((c, i) => `[Source ${i + 1} — ${c.titre}]:\n${c.contenu}`).join('\n\n');
+      const systemPrompt = `You are a helpful assistant that answers questions based strictly on the provided document context. Do not use outside knowledge.
+
+CRITICAL LANGUAGE RULE: The user is writing in ${questionLang}. You MUST respond ENTIRELY in ${questionLang}. Every single word of your response must be in ${questionLang}. Do not mix languages.
+
+If the answer is not found in the context, say so clearly in ${questionLang}.`;
+
       answer = await this.generateText(
-        `You are a helpful assistant that answers questions based strictly on the provided document context. Do not use outside knowledge. Always respond in the same language as the question.\n\nContext:\n${context}\n\nQuestion: ${question}\n\nAnswer based only on the context above. If the answer is not in the context, say so clearly in the same language as the question.`,
+        `Context:\n${context}\n\nQuestion: ${question}\n\nAnswer based only on the context above:`,
+        systemPrompt,
       );
       const seen = new Set<string>();
       sources = chunks
@@ -332,6 +384,52 @@ JSON array of tags:`;
     await this.prisma.conversation.update({ where: { id: conversation.id }, data: { dateMiseAJour: new Date() } });
     await this.plans.incrementAiUsage(userId, workspaceId);
     return { answer, sources, conversationId: conversation.id };
+  }
+
+  // ── Detect if a question is a translation request ─────────────────────────
+  private detectTranslationRequest(question: string): boolean {
+    const q = question.toLowerCase();
+    const patterns = [
+      /translat/i,
+      /tradu/i,
+      /ترجم/,
+      /into (english|french|arabic)/i,
+      /en (anglais|français|arabe)/i,
+      /إلى (الإنجليزية|الفرنسية|العربية)/,
+      /to (english|french|arabic)/i,
+    ];
+    return patterns.some((p) => p.test(q));
+  }
+
+  // ── Handle translation inside chat (translates document content) ──────────
+  private async handleTranslationInChat(
+    userId: string,
+    docId: string,
+    question: string,
+    questionLang: string,
+  ): Promise<string> {
+    const doc = await this.prisma.document.findUnique({ where: { id: docId } });
+    if (!doc) return questionLang === 'Arabic' ? 'لم يتم العثور على المستند.' : 'Document not found.';
+
+    const text = this.extractText(doc.contenu);
+    if (!text || text.trim().length < 10) {
+      return questionLang === 'Arabic'
+        ? 'المستند فارغ أو لا يحتوي على نص كافٍ للترجمة.'
+        : questionLang === 'French'
+          ? 'Le document est vide ou ne contient pas assez de texte pour être traduit.'
+          : 'The document is empty or does not contain enough text to translate.';
+    }
+
+    // Detect target language from the question
+    let targetLang = 'English';
+    const q = question.toLowerCase();
+    if (/french|français|فرنسية/.test(q)) targetLang = 'French';
+    else if (/arabic|arabe|عربية|العربية/.test(q)) targetLang = 'Arabic';
+    else if (/english|anglais|إنجليزية|الإنجليزية/.test(q)) targetLang = 'English';
+
+    const systemPrompt = `You are a professional translator. Translate the provided text to ${targetLang}. Return ONLY the translated text. Do not add explanations, notes, or preambles.`;
+    const truncated = text.slice(0, 6000);
+    return this.generateText(`Translate this text to ${targetLang}:\n\n${truncated}`, systemPrompt);
   }
 
   // ── Multi-doc RAG chat ────────────────────────────────────────────────────
@@ -367,6 +465,8 @@ JSON array of tags:`;
       data: { conversationId: conversation.id, role: RoleIA.UTILISATEUR, contenu: question },
     });
 
+    const questionLang = detectLanguageInstruction(question);
+
     const questionEmbedding = await this.getEmbedding(question);
     if (!questionEmbedding) {
       return { answer: EMBEDDING_RATE_LIMITED, sources: [], conversationId: conversation.id };
@@ -391,11 +491,21 @@ JSON array of tags:`;
     let sources: any[] = [];
 
     if (chunks.length === 0) {
-      answer = "Aucun contenu indexé trouvé dans les documents sélectionnés. Assurez-vous qu'ils ont été sauvegardés après leur création.";
+      const noContentMessages: Record<string, string> = {
+        Arabic: 'لم يتم العثور على محتوى مفهرس في المستندات المحددة. تأكد من حفظها بعد إنشائها.',
+        French: "Aucun contenu indexé trouvé dans les documents sélectionnés. Assurez-vous qu'ils ont été sauvegardés après leur création.",
+        English: 'No indexed content found in the selected documents. Make sure they were saved after creation.',
+      };
+      answer = noContentMessages[questionLang] || noContentMessages.French;
     } else {
       const context = chunks.map((c, i) => `[Source ${i + 1} — ${c.titre}]:\n${c.contenu}`).join('\n\n');
+      const systemPrompt = `You are a helpful assistant. Answer the question based ONLY on the following documents. Do not use outside knowledge.
+
+CRITICAL LANGUAGE RULE: The user is writing in ${questionLang}. You MUST respond ENTIRELY in ${questionLang}. Every single word of your response must be in ${questionLang}.`;
+
       answer = await this.generateText(
-        `You are a helpful assistant. Answer the question based ONLY on the following documents. Do not use outside knowledge. Always respond in the same language as the question.\n\nDocuments:\n${context}\n\nQuestion: ${question}\n\nAnswer:`,
+        `Documents:\n${context}\n\nQuestion: ${question}\n\nAnswer:`,
+        systemPrompt,
       );
       const seen = new Set<string>();
       sources = chunks
@@ -430,11 +540,13 @@ JSON array of tags:`;
 
     await this.plans.assertCanUseAi(userId, workspaceId);
 
+    const questionLang = detectLanguageInstruction(question);
+
     let isMeta = false;
     try {
       const classifyPrompt = `You are an intent classifier. Classify this question into ONE category:
 - "workspace_meta": questions about team members, who joined recently, recent activity, document statistics, who created what, how many documents exist
-- "document_rag": questions about the content inside documents, what a document says, summaries, explanations
+- "document_rag": questions about the content inside documents, what a document says, summaries, explanations, translations
 
 Question: "${question}"
 
@@ -495,11 +607,15 @@ Reply with ONLY one of these two exact strings: workspace_meta OR document_rag`;
         .map((a) => `- ${a.user.nom}: ${a.action} on ${new Date(a.dateCreation).toLocaleDateString()}`)
         .join('\n');
 
+      const systemPrompt = `You are a helpful workspace secretary. Answer the question using ONLY the workspace data below. Be concise.
+
+CRITICAL LANGUAGE RULE: The user is writing in ${questionLang}. You MUST respond ENTIRELY in ${questionLang}. Every single word of your response must be in ${questionLang}.`;
+
       answer = await this.generateText(
-        `You are a helpful workspace secretary. Answer the question using ONLY the workspace data below. Be concise. Always respond in the same language as the question.\n\nWorkspace data:\nMEMBERS (${members.length} total):\n${membersText}\n\nRECENT DOCUMENTS (${docCount} total):\n${docsText}\n\nRECENT ACTIVITY:\n${activityText}\n\nQuestion: ${question}\n\nAnswer:`,
+        `Workspace data:\nMEMBERS (${members.length} total):\n${membersText}\n\nRECENT DOCUMENTS (${docCount} total):\n${docsText}\n\nRECENT ACTIVITY:\n${activityText}\n\nQuestion: ${question}\n\nAnswer:`,
+        systemPrompt,
       );
     } else {
-      // ── RAG path — needs embedding ─────────────────────────────────────────
       const questionEmbedding = await this.getEmbedding(question);
       if (!questionEmbedding) {
         answer = EMBEDDING_RATE_LIMITED;
@@ -517,11 +633,21 @@ Reply with ONLY one of these two exact strings: workspace_meta OR document_rag`;
         `;
 
         if (chunks.length === 0) {
-          answer = 'Aucun contenu indexé trouvé. Assurez-vous que vos documents ont été sauvegardés pour être indexés.';
+          const noContentMessages: Record<string, string> = {
+            Arabic: 'لم يتم العثور على محتوى مفهرس. تأكد من حفظ مستنداتك ليتم فهرستها.',
+            French: 'Aucun contenu indexé trouvé. Assurez-vous que vos documents ont été sauvegardés pour être indexés.',
+            English: 'No indexed content found. Make sure your documents have been saved to be indexed.',
+          };
+          answer = noContentMessages[questionLang] || noContentMessages.French;
         } else {
           const context = chunks.map((c, i) => `[Source ${i + 1} — ${c.titre}]:\n${c.contenu}`).join('\n\n');
+          const systemPrompt = `You are a helpful assistant. Answer based strictly on the provided context.
+
+CRITICAL LANGUAGE RULE: The user is writing in ${questionLang}. You MUST respond ENTIRELY in ${questionLang}. Every single word of your response must be in ${questionLang}.`;
+
           answer = await this.generateText(
-            `You are a helpful assistant. Answer based strictly on the provided context. Always respond in the same language as the question.\n\nContext:\n${context}\n\nQuestion: ${question}\n\nAnswer:`,
+            `Context:\n${context}\n\nQuestion: ${question}\n\nAnswer:`,
+            systemPrompt,
           );
           const seen = new Set<string>();
           chunks
@@ -682,8 +808,11 @@ Reply with ONLY one of these two exact strings: workspace_meta OR document_rag`;
     const text = this.extractText(doc.contenu);
     if (!text.trim()) return 'Ce document ne contient pas encore de contenu à résumer.';
 
+    const systemPrompt = `You are a professional document summarizer. Summarize the document clearly with key points. You MUST respond in the same language as the document content — if Arabic, respond in Arabic; if French, respond in French; if English, respond in English. Never mix languages.`;
+
     return this.generateText(
-      `Summarize the following document clearly with key points. Always respond in the same language as the document content.\n\nTitle: ${doc.titre}\nContent:\n${text.slice(0, 8000)}\n\nConcise summary:`,
+      `Title: ${doc.titre}\nContent:\n${text.slice(0, 8000)}\n\nConcise summary:`,
+      systemPrompt,
     );
   }
 
@@ -699,9 +828,9 @@ Reply with ONLY one of these two exact strings: workspace_meta OR document_rag`;
     if (!rawText || rawText.trim().length < 30)
       throw new BadRequestException('Document is too short to simplify.');
 
-    return this.generateText(
-      `Rewrite the following document in plain, accessible language. Keep the same meaning. Always respond in the same language as the original document. Output only the simplified text.\n\n${rawText.slice(0, 6000)}`,
-    );
+    const systemPrompt = `You are a language simplification expert. Rewrite the following document in plain, accessible language. Keep the same meaning. You MUST respond in the same language as the original document — if Arabic, respond in Arabic; if French, respond in French; if English, respond in English. Output only the simplified text, no explanations.`;
+
+    return this.generateText(rawText.slice(0, 6000), systemPrompt);
   }
 
   async generateDocument(

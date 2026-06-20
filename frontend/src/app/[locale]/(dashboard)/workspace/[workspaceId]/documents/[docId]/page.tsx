@@ -1,6 +1,6 @@
-'use client';
-
 // frontend/src/app/[locale]/(dashboard)/workspace/[workspaceId]/documents/[docId]/page.tsx
+
+'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';

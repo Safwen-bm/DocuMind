@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Brain, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Brain, Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,6 +66,13 @@ export default function RegisterPage() {
 
   return (
     <div className="flex min-h-screen">
+      <Link
+        href={`/${locale}`}
+        className="absolute top-4 left-4 inline-flex items-center gap-1.5 text-sm text-white hover:text-foreground transition-colors z-10"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        {t("backHome")}
+      </Link>
       {/* Left panel - decorative */}
       <div className="hidden flex-1 items-center justify-center bg-primary lg:flex">
         <div className="max-w-md px-8 text-center">

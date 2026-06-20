@@ -35,6 +35,14 @@ export interface ConversationMessage {
   dateCreation: string;
 }
 
+export type InlineRewriteAction =
+  | "improve"
+  | "simplify"
+  | "rephrase"
+  | "translate_en"
+  | "translate_fr"
+  | "translate_ar";
+
 export const aiApi = {
   // ── Standard RAG chat ─────────────────────────────────────────────────────
   chat: (
@@ -73,7 +81,7 @@ export const aiApi = {
   // ── Inline rewrite ────────────────────────────────────────────────────────
   inlineRewrite: (
     text: string,
-    action: "improve" | "simplify" | "rephrase" | "translate",
+    action: InlineRewriteAction,
   ): Promise<string> =>
     api.post("/ai/inline", { text, action }).then(r => r.data.result),
 
@@ -109,29 +117,27 @@ export const aiApi = {
   deleteConversation: (conversationId: string): Promise<{ deleted: true }> =>
     api.delete(`/ai/conversations/${conversationId}`).then(r => r.data),
 
-  // ── Export conversation as PDF ──────────────────────────────────────
-  // Uses fetch directly (same pattern as document exports) to handle blob response
+  // ── Export conversation as PDF ────────────────────────────────────────────
   exportConversation: async (conversationId: string): Promise<void> => {
-  // Read token the same way the axios interceptor does
-  const match = document.cookie.match(/(?:^|;\s*)access_token=([^;]*)/);
-  const token = match ? decodeURIComponent(match[1]) : null;
+    const match = document.cookie.match(/(?:^|;\s*)access_token=([^;]*)/);
+    const token = match ? decodeURIComponent(match[1]) : null;
 
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/ai/conversations/${conversationId}/export`,
-    {
-      credentials: "include",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    },
-  );
-  if (!res.ok) throw new Error(`Export failed: ${res.status}`);
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `conversation-${conversationId.slice(0, 8)}.pdf`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-},
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/ai/conversations/${conversationId}/export`,
+      {
+        credentials: "include",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      },
+    );
+    if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `conversation-${conversationId.slice(0, 8)}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
 };

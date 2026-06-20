@@ -18,11 +18,14 @@ export class StripeService {
     userId: string;
     priceId: string;
     plan: 'PRO' | 'ENTERPRISE';
+    customerEmail?: string; // ← pre-fills the Stripe checkout form
   }): Promise<string> {
     const session = await this.stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [{ price: params.priceId, quantity: 1 }],
+      // Pre-fill email so the user doesn't have to type it again
+      ...(params.customerEmail && { customer_email: params.customerEmail }),
       success_url: `${process.env.FRONTEND_URL}/en/workspace/${params.workspaceId}?upgraded=true`,
       cancel_url: `${process.env.FRONTEND_URL}/en/pricing?cancelled=true`,
       metadata: {

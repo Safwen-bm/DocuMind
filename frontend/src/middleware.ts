@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const intlMiddleware = createMiddleware(routing)
 
-const protectedRoutes = ['/dashboard', '/workspace', '/invitations', '/profile', '/documents']
+const protectedRoutes = ['/dashboard', '/workspace', '/invitations', '/profile', '/documents', '/pricing']
 const authRoutes = ['/login', '/register', '/verify-otp', '/forgot-password', '/reset-password']
 // /share is intentionally PUBLIC — no token needed
 

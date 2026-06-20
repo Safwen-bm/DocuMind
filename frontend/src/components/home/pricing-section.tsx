@@ -121,28 +121,25 @@ export async function PricingSection({ locale }: { locale: string }) {
                   ))}
                 </ul>
 
-                {isFree ? (
-                  <Button variant="outline" className="w-full rounded-xl" asChild>
-                    <Link href={`/${locale}/register`}>
-                      {tPlan(`${key}.cta`)}
-                    </Link>
-                  </Button>
-                ) : (
-                  <Button
-                    className={cn(
-                      "w-full rounded-xl font-semibold gap-2",
-                      key === "pro"
-                        ? "bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-500/25"
-                        : "bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/25"
-                    )}
-                    asChild
-                  >
-                    <Link href={`/${locale}/pricing`}>
-                      {tPlan(`${key}.cta`)}
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                )}
+                {/* 
+                  Free → register
+                  Pro/Enterprise → register (user creates account first, then upgrades from dashboard)
+                  This is the standard SaaS pattern: sign up → land in dashboard → upgrade from /pricing
+                */}
+                <Button
+                  variant={isFree ? "outline" : "default"}
+                  className={cn(
+                    "w-full rounded-xl font-semibold gap-2",
+                    key === "pro" && "bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-500/25",
+                    key === "enterprise" && "bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/25",
+                  )}
+                  asChild
+                >
+                  <Link href={`/${locale}/register`}>
+                    {tPlan(`${key}.cta`)}
+                    {!isFree && <ArrowRight className="h-4 w-4" />}
+                  </Link>
+                </Button>
               </div>
             )
           })}

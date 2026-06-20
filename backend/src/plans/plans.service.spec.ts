@@ -1,3 +1,5 @@
+// C:\Users\MSI\Desktop\Projet\pfe-project\backend\src\plans\plans.service.spec.ts
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { PlansService, PLAN_LIMITS } from './plans.service';
 import { PrismaService } from '../prisma/prisma.service';

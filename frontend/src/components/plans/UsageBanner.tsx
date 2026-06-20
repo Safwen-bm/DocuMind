@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { plansApi } from "@/lib/plans.api";
 import { PlanBadge } from "./PlanBadge";
 import { cn } from "@/lib/utils";
+import { Sparkles } from "lucide-react";
 
 function UsageBar({ label, current, limit, isUnlimited }: {
   label: string; current: number; limit: number; isUnlimited: boolean;
@@ -38,7 +39,22 @@ export function UsageBanner({ workspaceId }: { workspaceId: string }) {
     staleTime: 30_000,
   });
 
-  if (!usage || usage.plan === "ENTERPRISE") return null;
+  if (!usage) return null;
+
+  // ENTERPRISE — show a clean "unlimited" badge, no bars needed
+  if (usage.plan === "ENTERPRISE") {
+    return (
+      <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+            <span className="text-xs font-semibold text-amber-500">Enterprise</span>
+          </div>
+          <span className="text-[10px] text-amber-500/70 font-medium">Unlimited</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-lg border border-border bg-card px-4 py-3 space-y-3">

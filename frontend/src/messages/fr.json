@@ -12,7 +12,8 @@
       "emailPlaceholder": "nom@entreprise.com",
       "passwordPlaceholder": "Entrez votre mot de passe",
       "panelTitle": "Votre connaissance, toujours à portée",
-      "panelSubtitle": "DocuMind combine la gestion documentaire structurée avec une recherche alimentée par l'IA pour que votre équipe ne perde plus jamais de connaissances."
+      "panelSubtitle": "DocuMind combine la gestion documentaire structurée avec une recherche alimentée par l'IA pour que votre équipe ne perde plus jamais de connaissances.",
+      "backHome": "Retour à l'accueil"
     },
     "register": {
       "title": "Créer votre compte",
@@ -29,7 +30,8 @@
       "passwordPlaceholder": "Min. 8 caractères",
       "confirmPlaceholder": "Répétez votre mot de passe",
       "panelTitle": "Commencez à construire votre base de connaissances",
-      "panelSubtitle": "Créez votre espace de travail, invitez votre équipe et laissez l'IA gérer votre documentation intelligemment."
+      "panelSubtitle": "Créez votre espace de travail, invitez votre équipe et laissez l'IA gérer votre documentation intelligemment.",
+      "backHome": "Retour à l'accueil"
     },
     "otp": {
       "title": "Vérifiez votre email",
@@ -680,7 +682,23 @@
       },
       "askAi": "Demander à l'IA",
       "openAi": "Ouvrir l'assistant IA",
-      "closeAi": "Fermer l'assistant IA"
+      "closeAi": "Fermer l'assistant IA",
+      "inlineAi": {
+        "trigger": "IA",
+        "menuTitle": "Actions IA",
+        "generating": "génération...",
+        "improve": "Améliorer",
+        "simplify": "Simplifier",
+        "rephrase": "Reformuler",
+        "translate": "Traduire",
+        "translateEn": "Anglais",
+        "translateFr": "Français",
+        "translateAr": "Arabe",
+        "generatingResult": "Génération en cours…",
+        "apply": "Appliquer",
+        "cancel": "Annuler",
+        "errorRetry": "Une erreur est survenue. Réessayez."
+      }
     },
     "ai": {
       "title": "Assistant IA",

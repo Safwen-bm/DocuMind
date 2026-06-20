@@ -48,8 +48,8 @@ class GenerateDocDto {
 
 class InlineRewriteDto {
   @IsString() @IsNotEmpty() text: string;
-  @IsString() @IsIn(['improve', 'simplify', 'rephrase', 'translate'])
-  action: 'improve' | 'simplify' | 'rephrase' | 'translate';
+  @IsString() @IsIn(['improve', 'simplify', 'rephrase', 'translate_en', 'translate_fr', 'translate_ar'])
+  action: 'improve' | 'simplify' | 'rephrase' | 'translate_en' | 'translate_fr' | 'translate_ar';
 }
 
 class DocumentActionDto {

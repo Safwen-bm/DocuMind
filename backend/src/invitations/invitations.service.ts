@@ -42,12 +42,17 @@ export class InvitationsService {
     });
 
     if (existingUser) {
-      const alreadyMember = await this.prisma.membreWorkspace.findUnique({
+      const existingMembership = await this.prisma.membreWorkspace.findUnique({
         where: {
           utilisateurId_workspaceId: { utilisateurId: existingUser.id, workspaceId },
         },
       });
-      if (alreadyMember) throw new BadRequestException('Cet utilisateur est déjà membre.');
+
+      // ── Only block if the member is ACTIVE (not soft-deleted) ────────────
+      // A previously removed member CAN be re-invited
+      if (existingMembership && !existingMembership.estRetire) {
+        throw new BadRequestException('Cet utilisateur est déjà membre.');
+      }
     }
 
     await this.prisma.invitation.deleteMany({ where: { email: dto.email, workspaceId } });
@@ -119,28 +124,50 @@ export class InvitationsService {
       throw new ForbiddenException('Cette invitation est destinée à une autre adresse email.');
     }
 
-    const alreadyMember = await this.prisma.membreWorkspace.findUnique({
+    // ── Check for existing membership (active OR soft-deleted) ────────────
+    const existingMembership = await this.prisma.membreWorkspace.findUnique({
       where: {
         utilisateurId_workspaceId: { utilisateurId: userId, workspaceId: invitation.workspaceId },
       },
     });
 
-    if (alreadyMember) {
+    if (existingMembership && !existingMembership.estRetire) {
+      // Already an active member — just clean up the invitation
       await this.prisma.invitation.delete({ where: { token } });
       return { message: 'Vous êtes déjà membre de ce workspace.', workspaceId: invitation.workspaceId };
     }
 
-    // ── Plan limit check at accept time too (workspace may have filled up
-    //    between invite being sent and user clicking the link) ───────────────
+    // ── Plan limit check at accept time too ────────────────────────────────
     await this.plans.assertCanAddMember(invitation.workspaceId);
 
-    await this.prisma.membreWorkspace.create({
-      data: {
-        utilisateurId: userId,
-        workspaceId: invitation.workspaceId,
-        role: invitation.role,
-      },
-    });
+    if (existingMembership && existingMembership.estRetire) {
+      // ── Re-activating a previously removed member ──────────────────────
+      // UPDATE the existing record instead of creating a new one
+      // (avoids unique constraint violation on utilisateurId_workspaceId)
+      await this.prisma.membreWorkspace.update({
+        where: {
+          utilisateurId_workspaceId: {
+            utilisateurId: userId,
+            workspaceId: invitation.workspaceId,
+          },
+        },
+        data: {
+          role: invitation.role,       // apply the new role from the invitation
+          estRetire: false,            // re-activate
+          dateRetrait: null,           // clear the removal timestamp
+          dateAdhesion: new Date(),    // reset join date to now
+        },
+      });
+    } else {
+      // ── Brand-new member — create the record ───────────────────────────
+      await this.prisma.membreWorkspace.create({
+        data: {
+          utilisateurId: userId,
+          workspaceId: invitation.workspaceId,
+          role: invitation.role,
+        },
+      });
+    }
 
     await this.prisma.invitation.delete({ where: { token } });
 
