@@ -95,7 +95,7 @@ function ViewerAvatars({ views }: { views: Array<{ userId: string; user: { nom: 
 }
 
 // ── Export dropdown ───────────────────────────────────────────────────────────
-function ExportDropdown({ docId, docTitre }: { docId: string; docTitre: string }) {
+function ExportDropdown({ docId, docTitre, canEdit }: { docId: string; docTitre: string; canEdit: boolean }) {
   const t = useTranslations("dashboard.documents")
   const [loadingFormat, setLoadingFormat] = useState<"pdf" | "docx" | "excel" | null>(null)
 
@@ -106,12 +106,14 @@ function ExportDropdown({ docId, docTitre }: { docId: string; docTitre: string }
       if (format === "docx")  await documentApi.exportDocx(docId, docTitre)
       if (format === "excel") await documentApi.exportExcel(docId, docTitre)
       toast.success(t("exportSuccess"))
-    } catch {
-      toast.error(t("exportError"))
+    } catch (err: any) {
+      toast.error(err?.message || t("exportError"))
     } finally {
       setLoadingFormat(null)
     }
   }
+
+  if (!canEdit) return null
 
   return (
     <DropdownMenu>
@@ -706,7 +708,7 @@ export function DocumentGrid({
                       </TooltipContent>
                     </Tooltip>
 
-                    <ExportDropdown docId={doc.id} docTitre={doc.titre} />
+                    <ExportDropdown docId={doc.id} docTitre={doc.titre} canEdit={canEdit} />
 
                     {canEdit && (
                       <DropdownMenu>

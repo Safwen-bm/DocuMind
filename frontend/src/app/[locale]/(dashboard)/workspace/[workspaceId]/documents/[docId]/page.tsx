@@ -408,8 +408,8 @@ export default function DocumentEditorPage() {
       if (format === 'pdf') await documentApi.exportPdf(docId, title);
       if (format === 'docx') await documentApi.exportDocx(docId, title);
       if (format === 'excel') await documentApi.exportExcel(docId, title);
-    } catch (err) {
-      console.error('Export failed:', err);
+    } catch (err: any) {
+      toast.error(err?.message || t('exportError'));
     } finally {
       setIsExporting(null);
     }
@@ -578,51 +578,53 @@ export default function DocumentEditorPage() {
               </TooltipContent>
             </Tooltip>
 
-            <DropdownMenu>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                      disabled={!!isExporting}
-                    >
-                      {isExporting ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Download className="h-4 w-4" />
-                      )}
-                    </button>
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
-                <TooltipContent>{t('export')}</TooltipContent>
-              </Tooltip>
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem
-                  className="gap-2 cursor-pointer"
-                  onClick={() => handleExport('pdf')}
-                  disabled={!!isExporting}
-                >
-                  <FileText className="h-3.5 w-3.5 text-red-500" />
-                  {t('exportPdf')}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="gap-2 cursor-pointer"
-                  onClick={() => handleExport('docx')}
-                  disabled={!!isExporting}
-                >
-                  <FileDown className="h-3.5 w-3.5 text-blue-500" />
-                  {t('exportDocx')}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="gap-2 cursor-pointer"
-                  onClick={() => handleExport('excel')}
-                  disabled={!!isExporting}
-                >
-                  <FileSpreadsheet className="h-3.5 w-3.5 text-green-600" />
-                  {t('exportExcel')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {canEdit && (
+              <DropdownMenu>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        disabled={!!isExporting}
+                      >
+                        {isExporting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
+                      </button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('export')}</TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuItem
+                    className="gap-2 cursor-pointer"
+                    onClick={() => handleExport('pdf')}
+                    disabled={!!isExporting}
+                  >
+                    <FileText className="h-3.5 w-3.5 text-red-500" />
+                    {t('exportPdf')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="gap-2 cursor-pointer"
+                    onClick={() => handleExport('docx')}
+                    disabled={!!isExporting}
+                  >
+                    <FileDown className="h-3.5 w-3.5 text-blue-500" />
+                    {t('exportDocx')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="gap-2 cursor-pointer"
+                    onClick={() => handleExport('excel')}
+                    disabled={!!isExporting}
+                  >
+                    <FileSpreadsheet className="h-3.5 w-3.5 text-green-600" />
+                    {t('exportExcel')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
             <Tooltip>
               <TooltipTrigger asChild>

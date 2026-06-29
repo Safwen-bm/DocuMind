@@ -100,7 +100,14 @@ export const documentApi = {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       },
     );
-    if (!res.ok) throw new Error(`Export PDF échoué: ${res.status}`);
+    if (!res.ok) {
+      let message = `Export PDF échoué: ${res.status}`;
+      try {
+        const body = await res.json();
+        if (body?.message) message = body.message;
+      } catch {}
+      throw new Error(message);
+    }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -121,7 +128,14 @@ export const documentApi = {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       },
     );
-    if (!res.ok) throw new Error(`Export DOCX échoué: ${res.status}`);
+    if (!res.ok) {
+      let message = `Export DOCX échoué: ${res.status}`;
+      try {
+        const body = await res.json();
+        if (body?.message) message = body.message;
+      } catch {}
+      throw new Error(message);
+    }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -142,7 +156,14 @@ export const documentApi = {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       },
     );
-    if (!res.ok) throw new Error(`Export Excel échoué: ${res.status}`);
+    if (!res.ok) {
+      let message = `Export Excel échoué: ${res.status}`;
+      try {
+        const body = await res.json();
+        if (body?.message) message = body.message;
+      } catch {}
+      throw new Error(message);
+    }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

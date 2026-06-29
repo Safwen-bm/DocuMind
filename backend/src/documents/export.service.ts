@@ -6,6 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Role } from '@prisma/client';
 import {
   Document as DocxDocument,
   Packer,
@@ -54,13 +55,28 @@ export class ExportService {
     return membre;
   }
 
+  private async checkCanExport(userId: string, workspaceId: string) {
+    const membre = await this.checkMember(userId, workspaceId);
+    const canExport: Role[] = [
+      Role.EDITEUR,
+      Role.ADMINISTRATEUR,
+      Role.PROPRIETAIRE,
+    ];
+    if (!canExport.includes(membre.role)) {
+      throw new ForbiddenException(
+        'Les lecteurs ne peuvent pas exporter ce document.',
+      );
+    }
+    return membre;
+  }
+
   private async fetchDoc(userId: string, documentId: string) {
     const doc = await this.prisma.document.findUnique({
       where: { id: documentId },
       include: { workspace: { select: { id: true, nom: true } } },
     });
     if (!doc) throw new NotFoundException('Document introuvable.');
-    await this.checkMember(userId, doc.workspaceId);
+    await this.checkCanExport(userId, doc.workspaceId);
     return doc;
   }
 
